@@ -40,7 +40,7 @@ public class InventoryServiceImpl implements InventoryService {
     @Override
     public void changeQuantity(InventoryChangeRequest req) {
         if (req.delta() == 0){
-            throw new BadRequestException("Количество не должно быть нулевым")
+            throw new BadRequestException("Количество не должно быть нулевым");
         }
 
         Character character = characterRepository.findById(req.characterId())
