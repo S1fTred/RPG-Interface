@@ -1,4 +1,4 @@
-package org.sft.tabletoprpg.entities;
+package org.sft.tabletoprpg.domain;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.sft.tabletoprpg.domain.Role;
+import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.HashSet;
@@ -16,15 +16,15 @@ import java.util.UUID;
 
 
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Getter @Setter
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@NoArgsConstructor @AllArgsConstructor
 @Entity
 @Table(name = "users", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"username"}),
-        @UniqueConstraint(columnNames = {"email"})
+        @UniqueConstraint(columnNames = {"username", "email"})
 })
 @ToString(exclude = {"passwordHash"})
+@Builder
 public class User {
 
     @Id
@@ -48,21 +48,22 @@ public class User {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Enumerated(EnumType.STRING)
+    @Column(name = "role_name", nullable = false)
     private Set<Role> roles = new HashSet<>();
 
     @CreationTimestamp
-    @Column(nullable = false,  updatable = false)
+    @Column(nullable = false, insertable = true, updatable = false)
     private Instant createdAt;
 
     @UpdateTimestamp
-    @Column(nullable = false,  updatable = false)
+    @Column(nullable = false, insertable = false, updatable = true)
     private Instant updatedAt;
 
 
     @PrePersist
     public void prePersist() {
-        if (id == null) {
-            id = UUID.randomUUID();
+        if (this.id == null) {
+            this.id = UUID.randomUUID();
         }
     }
 

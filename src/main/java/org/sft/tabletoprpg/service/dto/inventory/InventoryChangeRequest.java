@@ -1,4 +1,4 @@
-package org.sft.tabletoprpg.service.dto.item;
+package org.sft.tabletoprpg.service.dto.inventory;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;

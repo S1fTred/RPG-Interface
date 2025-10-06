@@ -1,4 +1,4 @@
-package org.sft.tabletoprpg.service.dto;
+package org.sft.tabletoprpg.service.dto.user;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

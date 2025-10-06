@@ -1,4 +1,4 @@
-package org.sft.tabletoprpg.service.dto;
+package org.sft.tabletoprpg.service.dto.campaign;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

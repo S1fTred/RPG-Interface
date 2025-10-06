@@ -1,4 +1,4 @@
-package org.sft.tabletoprpg.service.dto;
+package org.sft.tabletoprpg.service.dto.journal;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

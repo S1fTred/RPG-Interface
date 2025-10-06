@@ -1,4 +1,4 @@
-package org.sft.tabletoprpg.service.dto.campaign_member;
+package org.sft.tabletoprpg.service.dto.campaign;
 
 
 import jakarta.validation.constraints.NotNull;

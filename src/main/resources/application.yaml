@@ -1,1 +1,27 @@
-spring.application.name=RPG Interface
+spring:
+  application:
+    name: tabletop_rpg
+
+  datasource:
+    url: "jdbc:h2:file:E:/DataBase/RPG_DB;AUTO_SERVER=TRUE"
+    username: sft
+    password: 465522
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false        # отключаем OSIV, работаем с ленивыми данными в транзакции
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc.time_zone: UTC    # корректные Instant-ы и timestamp-ы
+    show-sql: true
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  flyway:
+    enabled: false

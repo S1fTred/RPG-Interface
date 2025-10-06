@@ -1,4 +1,4 @@
-package org.sft.tabletoprpg.service.dto;
+package org.sft.tabletoprpg.service.dto.character;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;

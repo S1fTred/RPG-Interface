@@ -17,12 +17,12 @@ import java.util.UUID;
 @NoArgsConstructor @AllArgsConstructor
 @Check(constraints = "quantity >= 1")
 @Entity
-@Table(name = "character_items",
+@Table(name = "character_inventory",
         uniqueConstraints = {
         @UniqueConstraint(columnNames = {"character_id", "item_id"})
         })
 
-public class CharacterItem {
+public class CharacterInventory {
 
     @Id
     @Column(updatable = false, nullable = false)
