@@ -39,25 +39,25 @@ public class InventoryServiceImpl implements InventoryService {
     @Transactional
     @Override
     public void changeQuantity(InventoryChangeRequest req) {
-        if (req.delta() == 0){
-            throw new BadRequestException("Количество не должно быть нулевым");
-        }
-
-        Character character = characterRepository.findById(req.characterId())
-            .orElseThrow(()-> new NotFoundException("Персонаж не найден"));
-
-        Item item = itemRepository.findById(req.itemId())
-            .orElseThrow(()-> new NotFoundException("Предмет не найден не найден"));
-
-        if (req.delta() <= 0){
-            throw new BadRequestException("Количество не должно быть нулевым или отрицательным");
-        }
-        else {
-            CharacterInventory characterInventory = new CharacterInventory();
-            characterInventory.setCharacter(character);
-            characterInventory.setItem(item);
-            characterInventory.setQuantity(req.delta());
-        }
+//        if (req.delta() == 0){
+//            throw new BadRequestException("Количество не должно быть нулевым");
+//        }
+//
+//        Character character = characterRepository.findById(req.characterId())
+//            .orElseThrow(()-> new NotFoundException("Персонаж не найден"));
+//
+//        Item item = itemRepository.findById(req.itemId())
+//            .orElseThrow(()-> new NotFoundException("Предмет не найден не найден"));
+//
+//        if (req.delta() <= 0){
+//            throw new BadRequestException("Количество не должно быть нулевым или отрицательным");
+//        }
+//        else {
+//            CharacterInventory characterInventory = new CharacterInventory();
+//            characterInventory.setCharacter(character);
+//            characterInventory.setItem(item);
+//            characterInventory.setQuantity(req.delta());
+//        }
     }
 
 
