@@ -14,4 +14,6 @@ public interface UserService {
     UserDto findUserById(UUID id);
 
     UserDto findByUsername(String username);
+
+    void deleteUser(UUID id);
 }

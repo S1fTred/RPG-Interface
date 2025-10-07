@@ -50,6 +50,12 @@ public class UserServiceImpl implements UserService {
     }
 
 
+    @Override
+    public void deleteUser(UUID id) {
+
+    }
+
+
     @Transactional(readOnly = true)
     @Override
     public UserDto findUserById(UUID id) {
@@ -66,6 +72,8 @@ public class UserServiceImpl implements UserService {
             .orElseThrow(() -> new NotFoundException("Пользователь не найден"));
         return toDto(user);
     }
+
+
 
 
     // ----------------------МАППЕРЫ----------------------//
