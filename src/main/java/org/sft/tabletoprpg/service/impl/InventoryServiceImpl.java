@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -39,25 +40,41 @@ public class InventoryServiceImpl implements InventoryService {
     @Transactional
     @Override
     public void changeQuantity(InventoryChangeRequest req) {
-//        if (req.delta() == 0){
-//            throw new BadRequestException("Количество не должно быть нулевым");
-//        }
-//
-//        Character character = characterRepository.findById(req.characterId())
-//            .orElseThrow(()-> new NotFoundException("Персонаж не найден"));
-//
-//        Item item = itemRepository.findById(req.itemId())
-//            .orElseThrow(()-> new NotFoundException("Предмет не найден не найден"));
-//
-//        if (req.delta() <= 0){
-//            throw new BadRequestException("Количество не должно быть нулевым или отрицательным");
-//        }
-//        else {
-//            CharacterInventory characterInventory = new CharacterInventory();
-//            characterInventory.setCharacter(character);
-//            characterInventory.setItem(item);
-//            characterInventory.setQuantity(req.delta());
-//        }
+
+        if (req.delta() == 0){
+            throw new BadRequestException("Количество не должно быть нулевым");
+        }
+
+        Character character = characterRepository.findById(req.characterId())
+            .orElseThrow(()-> new NotFoundException("Персонаж не найден"));
+
+        Item item = itemRepository.findById(req.itemId())
+            .orElseThrow(()-> new NotFoundException("Предмет не найден не найден"));
+
+        Optional<CharacterInventory> existedCharacterInventory = characterInventoryRepository.findByCharacter_IdAndItem_Id(character.getId(), item.getId());
+
+        if (existedCharacterInventory.isEmpty()) {
+            if (req.delta() < 0){
+                throw new BadRequestException("Нельзя списывать предмет, которого нет в инвентаре");
+            }
+            CharacterInventory newCharacterInventory = new  CharacterInventory();
+            newCharacterInventory.setItem(item);
+            newCharacterInventory.setCharacter(character);
+            newCharacterInventory.setQuantity(req.delta());
+            characterInventoryRepository.save(newCharacterInventory);
+            return;
+        }
+
+        CharacterInventory newCharacterInventory = existedCharacterInventory.get();
+        int newQty = newCharacterInventory.getQuantity() + req.delta();
+
+        if (newQty <= 0) {
+            throw new BadRequestException("Итоговое количество должно быть больше 0");
+        }
+
+        newCharacterInventory.setQuantity(newQty);
+        characterInventoryRepository.save(newCharacterInventory);
+
     }
 
 
