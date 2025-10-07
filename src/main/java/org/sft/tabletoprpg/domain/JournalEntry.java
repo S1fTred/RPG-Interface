@@ -17,6 +17,7 @@ import java.util.UUID;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor @AllArgsConstructor
 @Entity
+@Builder
 @Table(
         name = "journal_entries",
         indexes = {

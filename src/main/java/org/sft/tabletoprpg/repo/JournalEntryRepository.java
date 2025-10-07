@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface JournalEntryRepository extends JpaRepository<JournalEntry, UUID> {
 
     List<JournalEntry> findByCampaign_IdOrderByCreatedAtDesc(UUID campaignId);
+
+    boolean existsByCampaign_IdAndUser_Id(UUID campaignId, UUID authorId);
 }
