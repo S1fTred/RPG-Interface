@@ -5,11 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.sft.tabletoprpg.domain.JournalVisibility;
 
-import java.util.UUID;
-
-public record JournalEntryCreateRequest(
-        @NotNull UUID campaignId,
-        @NotNull UUID authorId,
+public record JournalEntryUpdateRequest(
         @NotBlank @Size(max = 50) String type,
         @NotNull JournalVisibility visibility,
         @NotBlank @Size(min=1, max=150) String title,

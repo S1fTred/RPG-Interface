@@ -11,6 +11,8 @@ import org.sft.tabletoprpg.repo.UserRepository;
 import org.sft.tabletoprpg.service.JournalService;
 import org.sft.tabletoprpg.service.dto.journal.JournalEntryCreateRequest;
 import org.sft.tabletoprpg.service.dto.journal.JournalEntryDto;
+import org.sft.tabletoprpg.service.dto.journal.JournalEntryUpdateRequest;
+import org.sft.tabletoprpg.service.exception.BadRequestException;
 import org.sft.tabletoprpg.service.exception.ForbiddenException;
 import org.sft.tabletoprpg.service.exception.NotFoundException;
 import org.springframework.stereotype.Service;
@@ -28,27 +30,6 @@ public class JournalServiceImpl implements JournalService {
     private final UserRepository userRepository;
     private final CampaignMemberRepository campaignMemberRepository;
 
-    @Transactional
-    @Override
-    public JournalEntryDto createJournal(JournalEntryCreateRequest req) {
-
-        Campaign campaign = campaignRepository.findById(req.campaignId())
-                .orElseThrow(() -> new NotFoundException("Кампейн не найден"));
-
-        User author = userRepository.findById(req.authorId())
-                .orElseThrow(() -> new NotFoundException("Автор не найден"));
-
-        if (!journalEntryRepository.existsByCampaign_IdAndUser_Id(req.campaignId(), req.authorId())){
-            throw new ForbiddenException("Автор - не член кампейна");
-        }
-
-        JournalEntry journalEntry = toEntity(req);
-        journalEntry.setCampaign(campaign);
-        journalEntry.setAuthor(author);
-        journalEntryRepository.save(journalEntry);
-
-        return toDto(journalEntry);
-    }
 
     @Transactional(readOnly = true)
     @Override
@@ -56,15 +37,104 @@ public class JournalServiceImpl implements JournalService {
         return journalEntryRepository.findByCampaign_IdOrderByCreatedAtDesc(campaignId).stream().map(this::toDto).toList();
     }
 
+    @Override
+    public List<JournalEntryDto> listJournals(UUID campaignId, UUID requesterId, String type, Boolean onlyPlayersVisible) {
+        return List.of();
+    }
+
+    @Transactional
+    @Override
+    public JournalEntryDto createJournal(UUID campaignId, UUID gmId, JournalEntryCreateRequest req) {
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new NotFoundException("Кампания не найдена"));
+
+        if (!campaign.getGm().getId().equals(gmId)) {
+            throw new ForbiddenException("Только GM может создавать записи журнала");
+        }
+
+        User author = userRepository.findById(gmId)
+                .orElseThrow(() -> new NotFoundException("Автор не найден"));
+
+        String type = req.type();
+        if (type == null || type.trim().isEmpty()) {
+            throw new BadRequestException("Тип записи не должен быть пустым");
+        }
+
+        JournalEntry entry = toEntity(req);
+        entry.setType(type.trim());
+        entry.setCampaign(campaign);
+        entry.setAuthor(author);
+
+        journalEntryRepository.save(entry);
+        return toDto(entry);
+    }
+
+    @Transactional
+    @Override
+    public JournalEntryDto updateJournal(UUID entryId, UUID gmId, JournalEntryUpdateRequest req) {
+        JournalEntry entry = journalEntryRepository.findById(entryId)
+                .orElseThrow(() -> new NotFoundException("Запись не найдена"));
+
+        UUID gmOfCampaign = entry.getCampaign().getGm().getId();
+        if (!gmOfCampaign.equals(gmId)) {
+            throw new ForbiddenException("Только GM может редактировать записи журнала");
+        }
+
+        if (req.type() != null) {
+            String type = req.type().trim();
+            if (type.isEmpty()) throw new BadRequestException("Тип записи не должен быть пустым");
+            entry.setType(type);
+        }
+        if (req.visibility() != null) {
+            entry.setVisibility(req.visibility());
+        }
+        if (req.title() != null) {
+            String t = req.title().trim();
+            entry.setTitle(t.isEmpty() ? null : t);
+        }
+        if (req.content() != null) {
+            String c = req.content().trim();
+            if (c.isEmpty()) throw new BadRequestException("Контент не должен быть пустым");
+            entry.setContent(c);
+        }
+        if (req.tags() != null) {
+            String tg = req.tags().trim();
+            entry.setTags(tg.isEmpty() ? null : tg);
+        }
+
+        journalEntryRepository.save(entry);
+        return toDto(entry);
+    }
+
+    @Transactional
+    @Override
+    public void deleteJournal(UUID entryId, UUID gmId) {
+        JournalEntry entry = journalEntryRepository.findById(entryId)
+                .orElseThrow(() -> new NotFoundException("Запись не найдена"));
+
+        UUID gmOfCampaign = entry.getCampaign().getGm().getId();
+        if (!gmOfCampaign.equals(gmId)) {
+            throw new ForbiddenException("Только GM может удалять записи журнала");
+        }
+
+        journalEntryRepository.delete(entry);
+    }
 
 
     //----------------------МАППЕРЫ-------------------------//
 
     private JournalEntry toEntity(JournalEntryCreateRequest req){
-        return JournalEntry.builder()
-                .title(req.title())
-                .content(req.content())
-                .build();
+        JournalEntry e = new JournalEntry();
+        e.setVisibility(req.visibility());
+        e.setTitle(req.title() == null ? null : req.title().trim());
+        String content = req.content() == null ? null : req.content().trim();
+        if (content == null || content.isEmpty()) {
+            throw new BadRequestException("Контент не должен быть пустым");
+        }
+        e.setContent(content);
+        e.setTags(req.tags() == null ? null : req.tags().trim());
+        // e.setType(...) НЕ трогаем здесь — ставим в месте валидации выше
+        return e;
     }
 
     private JournalEntryDto toDto(JournalEntry journalEntry){
@@ -72,8 +142,11 @@ public class JournalServiceImpl implements JournalService {
                 .id(journalEntry.getId())
                 .campaignId(journalEntry.getCampaign().getId())
                 .authorId(journalEntry.getAuthor().getId())
+                .type(journalEntry.getType())
+                .visibility(journalEntry.getVisibility())
                 .title(journalEntry.getTitle())
                 .content(journalEntry.getContent())
+                .tags(journalEntry.getTags())
                 .createdAt(journalEntry.getCreatedAt())
                 .build();
     }

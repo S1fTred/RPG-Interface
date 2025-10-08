@@ -2,6 +2,7 @@ package org.sft.tabletoprpg.domain;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
@@ -20,7 +21,7 @@ import java.util.UUID;
 @Builder
 @Table(name = "journal_entries",
         indexes = {
-                @Index(name = "idx_journal_campaign_created", columnList = "campaign_id, created_at")
+                @Index(name = "idx_journal_campaign_created", columnList = "campaign_id, created_at desc")
         }
 )
 
@@ -39,14 +40,21 @@ public class JournalEntry {
     @JoinColumn(name = "author_id",  nullable = false)
     private User author;
 
+    @Size(max = 50)
+    @NotBlank(message = "Тип журнала не должен быть пустым")
+    private String type;
+
+    @Enumerated(EnumType.STRING)
+    private JournalVisibility visibility;
+
     @Column(nullable = false, length = 150)
-    @NotBlank(message = "Title should not be blank")
+    @NotBlank(message = "Название не должно быть пустым")
     private String title;
 
     @Lob
-    @NotBlank(message = "Content should not be blank")
-    @Column(nullable = false)
     private String content;
+
+    private String tags;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
