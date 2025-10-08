@@ -16,5 +16,5 @@ public class Atributes {
 
     @Min(8)
     @Max(20)
-    private int strength, dexterity, constitution, intelligence, wisdom, charisma;
+    private int attr_str, attr_agi, attr_stam, attr_int, attr_wis, attr_cha;
 }

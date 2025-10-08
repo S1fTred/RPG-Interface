@@ -66,12 +66,12 @@ public class Character {
 
     @Embedded
     @AttributeOverrides({
-            @AttributeOverride(name = "strength",     column = @Column(name = "attr_str", nullable = false)),
-            @AttributeOverride(name = "dexterity",    column = @Column(name = "attr_dex", nullable = false)),
-            @AttributeOverride(name = "constitution", column = @Column(name = "attr_con", nullable = false)),
-            @AttributeOverride(name = "intelligence", column = @Column(name = "attr_int", nullable = false)),
-            @AttributeOverride(name = "wisdom",       column = @Column(name = "attr_wis", nullable = false)),
-            @AttributeOverride(name = "charisma",     column = @Column(name = "attr_cha", nullable = false))
+            @AttributeOverride(name = "attr_str",     column = @Column(name = "strength", nullable = false)),
+            @AttributeOverride(name = "attr_agi",    column = @Column(name = "agility", nullable = false)),
+            @AttributeOverride(name = "attr_stam", column = @Column(name = "stamina", nullable = false)),
+            @AttributeOverride(name = "attr_int", column = @Column(name = "intelligence", nullable = false)),
+            @AttributeOverride(name = "attr_wis",       column = @Column(name = "wisdom", nullable = false)),
+            @AttributeOverride(name = "attr_cha",     column = @Column(name = "charisma", nullable = false))
     })
     private Atributes atributes;
 
