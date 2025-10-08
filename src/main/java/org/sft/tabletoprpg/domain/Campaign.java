@@ -20,8 +20,7 @@ import static jakarta.persistence.FetchType.LAZY;
 @Builder
 @Table(name = "campaigns",
         uniqueConstraints = {@UniqueConstraint(columnNames = {"name"})},
-        indexes = {@Index(name = "idx_campaigns_gm", columnList = "gm_id"),
-                @Index(name = "idx_campaigns_name", columnList = "name")})
+        indexes = {@Index(name = "idx_campaigns_gm", columnList = "gm_id")})
 public class Campaign {
 
     @Id

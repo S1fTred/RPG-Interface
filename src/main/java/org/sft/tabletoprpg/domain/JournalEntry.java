@@ -18,8 +18,7 @@ import java.util.UUID;
 @NoArgsConstructor @AllArgsConstructor
 @Entity
 @Builder
-@Table(
-        name = "journal_entries",
+@Table(name = "journal_entries",
         indexes = {
                 @Index(name = "idx_journal_campaign_created", columnList = "campaign_id, created_at")
         }
