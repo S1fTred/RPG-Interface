@@ -11,6 +11,7 @@ import org.sft.tabletoprpg.service.InventoryService;
 import org.sft.tabletoprpg.service.dto.inventory.CharacterInventoryEntryDto;
 import org.sft.tabletoprpg.service.dto.inventory.InventoryChangeRequest;
 import org.sft.tabletoprpg.service.exception.BadRequestException;
+import org.sft.tabletoprpg.service.exception.ForbiddenException;
 import org.sft.tabletoprpg.service.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class InventoryServiceImpl implements InventoryService {
 
     private final CharacterInventoryRepository characterInventoryRepository;
@@ -28,9 +30,18 @@ public class InventoryServiceImpl implements InventoryService {
     private final ItemRepository itemRepository;
 
 
-    @Transactional(readOnly = true)
     @Override
-    public List<CharacterInventoryEntryDto> getInventoryByCharacter(UUID characterId) {
+    public List<CharacterInventoryEntryDto> getInventoryByCharacter(UUID characterId, UUID requesterId) {
+
+        Character character = characterRepository.findById(characterId)
+            .orElseThrow(()-> new NotFoundException("Персонаж не найден"));
+
+        UUID ownerId = character.getOwner().getId();
+        UUID gmId = character.getCampaign().getGm().getId();
+        if (!requesterId.equals(ownerId) && !requesterId.equals(gmId)) {
+            throw new ForbiddenException("Нет прав на просмотр инвентаря персонажа");
+        }
+
         return characterInventoryRepository.findByCharacter_Id(characterId)
             .stream()
             .map(this::toDto)
@@ -39,9 +50,9 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Transactional
     @Override
-    public void changeQuantity(InventoryChangeRequest req) {
-
-        if (req.delta() == 0){
+    public void changeQuantity(InventoryChangeRequest req, UUID requesterId) {
+        final int delta = req.delta();
+        if (delta == 0){
             throw new BadRequestException("Количество не должно быть нулевым");
         }
 
@@ -51,10 +62,16 @@ public class InventoryServiceImpl implements InventoryService {
         Item item = itemRepository.findById(req.itemId())
             .orElseThrow(()-> new NotFoundException("Предмет не найден не найден"));
 
+        UUID ownerId = character.getOwner().getId();
+        UUID gmId = character.getCampaign().getGm().getId();
+        if (!requesterId.equals(ownerId) && !requesterId.equals(gmId)) {
+            throw new ForbiddenException("Нет прав на просмотр инвентаря персонажа");
+        }
+
         Optional<CharacterInventory> existedCharacterInventory = characterInventoryRepository.findByCharacter_IdAndItem_Id(character.getId(), item.getId());
 
         if (existedCharacterInventory.isEmpty()) {
-            if (req.delta() < 0){
+            if (delta < 0){
                 throw new BadRequestException("Нельзя списывать предмет, которого нет в инвентаре");
             }
             CharacterInventory newCharacterInventory = new  CharacterInventory();
@@ -66,8 +83,7 @@ public class InventoryServiceImpl implements InventoryService {
         }
 
         CharacterInventory newCharacterInventory = existedCharacterInventory.get();
-        int newQty = newCharacterInventory.getQuantity() + req.delta();
-
+        int newQty = newCharacterInventory.getQuantity() + delta;
         if (newQty <= 0) {
             throw new BadRequestException("Итоговое количество должно быть больше 0");
         }
@@ -83,7 +99,7 @@ public class InventoryServiceImpl implements InventoryService {
     //--------------------МАППЕРЫ----------------//
     private CharacterInventoryEntryDto toDto(CharacterInventory characterItem){
         return CharacterInventoryEntryDto.builder()
-            .characterId(characterItem.getId())
+            .characterId(characterItem.getCharacter().getId())
             .itemId(characterItem.getItem().getId())
             .quantity(characterItem.getQuantity())
             .build();

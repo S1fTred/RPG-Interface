@@ -10,6 +10,7 @@ import java.util.UUID;
 
 public interface CharacterInventoryRepository extends JpaRepository<CharacterInventory, CharacterInventoryId> {
 
+    boolean existsByItem_Id(UUID itemId);
     Optional<CharacterInventory> findByCharacter_IdAndItem_Id(UUID characterId, UUID itemId);
     List<CharacterInventory> findByCharacter_Id(UUID characterId);
     void deleteByCharacter_IdAndItem_Id(UUID characterId, UUID itemId);

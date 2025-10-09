@@ -8,8 +8,8 @@ import java.util.UUID;
 
 public interface InventoryService {
 
-    List<CharacterInventoryEntryDto> getInventoryByCharacter(UUID characterId);
-    void changeQuantity(InventoryChangeRequest req);
+    List<CharacterInventoryEntryDto> getInventoryByCharacter(UUID characterId, UUID requesterId);
+    void changeQuantity(InventoryChangeRequest req, UUID requesterId);
 
 
 }
