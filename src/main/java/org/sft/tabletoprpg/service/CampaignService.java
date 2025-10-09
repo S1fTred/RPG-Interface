@@ -11,9 +11,12 @@ public interface CampaignService {
 
     CampaignDto createCampaign(UUID gmId, CampaignCreateRequest req);
 
+    void deleteCampaign(UUID gmId, UUID campaignId);
+
     void addMember(UUID campaignId, UUID gmId, AddMemberRequest req);
 
     List<CampaignDto> findCampaignsByGm_Id(UUID gmId);
 
     CampaignDto findCampaignById(UUID id);
+
 }

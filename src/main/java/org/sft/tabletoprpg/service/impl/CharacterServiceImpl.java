@@ -84,6 +84,22 @@ public class CharacterServiceImpl implements CharacterService {
         return toDto(character);
     }
 
+    @Override
+    public void deleteCharacter(UUID characterId, UUID requesterId) {
+
+        Character character = characterRepository.findById(characterId)
+            .orElseThrow(()-> new NotFoundException("Персонаж не найден"));
+
+        UUID ownerId = character.getOwner().getId();
+        UUID gmId = character.getCampaign().getGm().getId();
+
+        if (!requesterId.equals(ownerId) && !requesterId.equals(gmId)) {
+            throw new ForbiddenException("Нет прав на удаление персонажа");
+        }
+
+        characterRepository.delete(character);
+    }
+
 
     @Override
     public List<CharacterDto> findCharactersByCampaign_Id(UUID campaignId) {

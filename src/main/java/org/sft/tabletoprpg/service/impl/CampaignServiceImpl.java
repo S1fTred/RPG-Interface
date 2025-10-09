@@ -8,6 +8,7 @@ import org.sft.tabletoprpg.domain.User;
 import org.sft.tabletoprpg.domain.compositeKeys.CampaignMemberId;
 import org.sft.tabletoprpg.repo.CampaignMemberRepository;
 import org.sft.tabletoprpg.repo.CampaignRepository;
+import org.sft.tabletoprpg.repo.CharacterRepository;
 import org.sft.tabletoprpg.repo.UserRepository;
 import org.sft.tabletoprpg.service.CampaignService;
 import org.sft.tabletoprpg.service.dto.campaign.AddMemberRequest;
@@ -29,7 +30,8 @@ public class CampaignServiceImpl implements CampaignService {
 
     private final CampaignRepository campaignRepository;
     private final UserRepository userRepository;
-    private final CampaignMemberRepository  campaignMemberRepository;
+    private final CampaignMemberRepository campaignMemberRepository;
+    private final CharacterRepository characterRepository;
 
 
     @Transactional
@@ -62,6 +64,23 @@ public class CampaignServiceImpl implements CampaignService {
         return toDto(campaign);
     }
 
+    @Transactional
+    @Override
+    public void deleteCampaign(UUID gmId, UUID campaignId) {
+
+        Campaign campaign = campaignRepository.findById(campaignId)
+            .orElseThrow(()-> new NotFoundException("Кампания не найдена"));
+
+        if (!campaign.getGm().getId().equals(gmId)) {
+            throw new ForbiddenException("Только GM может удалять кампанию");
+        }
+
+        if (characterRepository.existsByCampaign_Id(campaignId)) {
+            throw new ConflictException("Нельзя удалить кампанию: в ней есть персонажи");
+        }
+
+        campaignRepository.delete(campaign);
+    }
 
 
     @Transactional

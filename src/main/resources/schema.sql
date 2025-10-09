@@ -19,7 +19,7 @@ CREATE TABLE campaigns (
                            id UUID PRIMARY KEY,
                            name VARCHAR(100) NOT NULL,
                            description TEXT,
-                           gm_id UUID NOT NULL REFERENCES users(id),
+                           gm_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
                            created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
                            updated_at TIMESTAMP WITH TIME ZONE
 );
@@ -49,8 +49,8 @@ CREATE TABLE characters (
                         hp INT NOT NULL CHECK (hp >= 0),
                         max_hp INT NOT NULL CHECK (max_hp > 0),
                         strength INT, agility INT, stamina INT, intelligence INT, wisdom INT, charisma INT,
-                        owner_id UUID NOT NULL REFERENCES users(id),
-                        campaign_id UUID NOT NULL REFERENCES campaigns(id),
+                        owner_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+                        campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE RESTRICT,
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
@@ -82,7 +82,7 @@ CREATE INDEX IF NOT EXISTS idx_charinv_character ON character_inventory (charact
 CREATE TABLE journal_entries (
                          id UUID PRIMARY KEY,
                          campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
-                         author_id UUID NOT NULL REFERENCES users(id),
+                         author_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
                          type VARCHAR(50) NOT NULL,
                          visibility VARCHAR(20) NOT NULL,
                          title VARCHAR(150),

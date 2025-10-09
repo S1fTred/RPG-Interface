@@ -10,6 +10,8 @@ public interface CharacterService {
 
     CharacterDto createCharacter(CharacterCreateRequest req, UUID requesterId);
 
+    void deleteCharacter(UUID characterId,  UUID requesterId);
+
     List<CharacterDto> findCharactersByCampaign_Id(UUID campaignId);
 
     List<CharacterDto> findCharactersByOwner_Id(UUID ownerId);
