@@ -9,6 +9,7 @@ import java.util.UUID;
 public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
 
     List<Campaign> findByGm_Id(UUID gmUserId);
+    boolean existsByGm_Id(UUID gmId);
     boolean existsByIdAndGm_Id(UUID campaignId, UUID gmUserId);
 
 }

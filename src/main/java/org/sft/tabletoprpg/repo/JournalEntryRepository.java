@@ -10,13 +10,10 @@ import java.util.UUID;
 public interface JournalEntryRepository extends JpaRepository<JournalEntry, UUID> {
 
     List<JournalEntry> findByCampaign_IdOrderByCreatedAtDesc(UUID campaignId);
-
     List<JournalEntry> findByCampaignIdAndVisibilityOrderByCreatedAtDesc(UUID campaignId, JournalVisibility visibility);
-
     List<JournalEntry> findByCampaignIdAndTypeIgnoreCaseOrderByCreatedAtDesc(UUID campaignId, String type);
-
     List<JournalEntry> findByCampaignIdAndTypeIgnoreCaseAndVisibilityOrderByCreatedAtDesc(UUID campaignId, String type, JournalVisibility visibility);
-
     boolean existsByCampaign_IdAndUser_Id(UUID campaignId, UUID authorId);
+    boolean existsByAuthor_Id(UUID authorId);
 
 }
