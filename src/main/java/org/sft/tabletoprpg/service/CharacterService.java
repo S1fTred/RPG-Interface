@@ -8,11 +8,11 @@ import java.util.UUID;
 
 public interface CharacterService {
 
-    CharacterDto createCharacter(CharacterCreateRequest req);
+    CharacterDto createCharacter(CharacterCreateRequest req, UUID requesterId);
 
     List<CharacterDto> findCharactersByCampaign_Id(UUID campaignId);
 
     List<CharacterDto> findCharactersByOwner_Id(UUID ownerId);
 
-    CharacterDto setHp(UUID characterId, int newHp);
+    CharacterDto setHp(UUID characterId, int newHp, UUID requesterId);
 }
