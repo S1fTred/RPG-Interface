@@ -41,15 +41,15 @@ public class Character {
     private UUID id;
 
     @Column(nullable=false, length=100)
-    @NotBlank(message = "Character name should not be blank")
+    @NotBlank(message = "Имя персонажа не должно быть пустым")
     private String name;
 
     @Column(name = "clazz", nullable=false, length=50)
-    @NotBlank(message = "Class should not be blank")
+    @NotBlank(message = "Класс персонажа не должен быть пустым")
     private String clazz;
 
     @Column(nullable=false, length=50)
-    @NotBlank(message = "Race should not be blank")
+    @NotBlank(message = "Раса персонажа не должна быть пустой")
     private String race;
 
     @Column(nullable=false)

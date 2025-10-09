@@ -8,7 +8,6 @@ import java.util.UUID;
 import lombok.*;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
-import org.springframework.stereotype.Component;
 
 import static jakarta.persistence.FetchType.LAZY;
 

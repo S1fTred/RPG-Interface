@@ -28,7 +28,7 @@ public class Campaign {
     private UUID id;
 
     @Column(nullable = false)
-    @NotBlank(message = "Title of campaign should not be blank")
+    @NotBlank(message = "Название кампании не должно быть пустым")
     private String name;
 
     @Lob

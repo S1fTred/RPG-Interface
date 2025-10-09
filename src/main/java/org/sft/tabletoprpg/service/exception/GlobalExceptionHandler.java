@@ -65,11 +65,11 @@ public class GlobalExceptionHandler {
                         fe.getField(),
                         fe.getDefaultMessage() != null
                                 ? fe.getDefaultMessage()
-                                : (fe.getCode() != null ? fe.getCode() : "Validation error")
+                                : (fe.getCode() != null ? fe.getCode() : "Ошибка валидации")
                 ))
                 .toList();
 
-        String msg = "Validation failed: " + items.size() + " error(s)";
+        String msg = "Validation failed: " + items.size() + " ошибка(и)";
         return build(HttpStatus.BAD_REQUEST, msg, req, items);
     }
 
@@ -80,7 +80,7 @@ public class GlobalExceptionHandler {
                 .stream()
                 .map(this::toFieldItem)
                 .toList();
-        String msg = "Constraint violation: " + items.size() + " error(s)";
+        String msg = "Нарушение ограничений: " + items.size() + " error(s)";
         return build(HttpStatus.BAD_REQUEST, msg, req, items);
     }
 
@@ -93,13 +93,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiErrorResponse> handleUnreadable(HttpMessageNotReadableException ex, HttpServletRequest req) {
-        return build(HttpStatus.BAD_REQUEST, "Malformed JSON request", req, null);
+        return build(HttpStatus.BAD_REQUEST, "Испорченный запрос JSON", req, null);
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiErrorResponse> handleMissingParam(MissingServletRequestParameterException ex,
                                                                HttpServletRequest req) {
-        return build(HttpStatus.BAD_REQUEST, "Missing required parameter: " + ex.getParameterName(), req, null);
+        return build(HttpStatus.BAD_REQUEST, "Пропущен требуемый параметр: " + ex.getParameterName(), req, null);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
@@ -120,7 +120,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex,
                                                                 HttpServletRequest req) {
         // Не раскрываем внутренние детали SQL — возвращаем 409.
-        return build(HttpStatus.CONFLICT, "Data integrity violation", req, null);
+        return build(HttpStatus.CONFLICT, "Нарушение целостности данных", req, null);
     }
 
     // ---------- Fallback ----------
@@ -128,7 +128,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleAny(Exception ex, HttpServletRequest req) {
         // На проде здесь обычно логируем stacktrace. Сообщение отдаём общее.
-        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", req, null);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Внутренняя ошибка сервера", req, null);
     }
 
 

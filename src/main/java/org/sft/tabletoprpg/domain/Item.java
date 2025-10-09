@@ -24,7 +24,7 @@ public class Item {
     private UUID id;
 
     @Column(nullable = false, length = 100)
-    @NotBlank(message = "Item name should not be blank")
+    @NotBlank(message = "Название предмета не должно быть пустым")
     private String name;
 
     @Lob

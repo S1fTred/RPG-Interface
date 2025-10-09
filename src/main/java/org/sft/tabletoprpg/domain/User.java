@@ -32,17 +32,17 @@ public class User {
     private UUID id;
 
     @Column(nullable = false, unique = true, length = 30)
-    @NotBlank(message = "Username should not be blank")
+    @NotBlank(message = "Логин не должен быть пустым")
     @Size(min = 3, max = 30)
     private String username;
 
     @Column(nullable = false, unique = true)
-    @NotBlank(message = "Email should not be blank")
+    @NotBlank(message = "Почта не должна быть пустой")
     @Email
     private String email;
 
     @Column(nullable=false)
-    @NotBlank(message = "Password should not be blank")
+    @NotBlank(message = "Пароль не должен быть пустым")
     private String passwordHash;
 
     @ElementCollection(fetch = FetchType.EAGER)
