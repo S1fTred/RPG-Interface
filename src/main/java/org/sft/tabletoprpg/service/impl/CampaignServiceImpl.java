@@ -5,6 +5,7 @@ import org.sft.tabletoprpg.domain.Campaign;
 import org.sft.tabletoprpg.domain.CampaignMember;
 import org.sft.tabletoprpg.domain.CampaignRole;
 import org.sft.tabletoprpg.domain.User;
+import org.sft.tabletoprpg.domain.compositeKeys.CampaignMemberId;
 import org.sft.tabletoprpg.repo.CampaignMemberRepository;
 import org.sft.tabletoprpg.repo.CampaignRepository;
 import org.sft.tabletoprpg.repo.UserRepository;
@@ -23,6 +24,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CampaignServiceImpl implements CampaignService {
 
     private final CampaignRepository campaignRepository;
@@ -35,32 +37,56 @@ public class CampaignServiceImpl implements CampaignService {
     public CampaignDto createCampaign(UUID gmId, CampaignCreateRequest req) {
         User gm = userRepository.findById(gmId)
             .orElseThrow(()->new NotFoundException("Гейм-мастер не найден"));
-        Campaign campaign = toEntity(req);
 
+        String name = req.name() == null ? null : req.name().trim();
+        if (name==null || name.isEmpty()){
+            throw new ConflictException("Название кампании не должно быть пустым");
+        }
+
+        Campaign campaign = toEntity(req);
+        campaign.setName(name);
         campaign.setGm(gm);
+
         campaignRepository.save(campaign);
+
+        if (!campaignMemberRepository.existsByCampaign_IdAndUser_Id(campaign.getId(), gm.getId())) {
+            CampaignMember cm = CampaignMember.builder()
+                .id(new CampaignMemberId(campaign.getId(), gm.getId()))
+                .campaign(campaign)
+                .user(gm)
+                .roleInCampaign(CampaignRole.GM)
+                .build();
+            campaignMemberRepository.save(cm);
+        }
 
         return toDto(campaign);
     }
 
 
+
     @Transactional
     @Override
-    public void addMember(UUID campaignId, AddMemberRequest req) {
+    public void addMember(UUID campaignId, UUID gmId, AddMemberRequest req) {
         Campaign campaign = campaignRepository.findById(campaignId)
             .orElseThrow(() -> new NotFoundException("Кампания не найдена"));
+
         User user = userRepository.findById(req.userId())
             .orElseThrow(() -> new NotFoundException("Пользователь не найден"));
+
+        if (!campaign.getGm().getId().equals(gmId)) {
+            throw new ForbiddenException("Только GM может добавлять участников");
+        }
 
         if (campaignRepository.existsByIdAndGm_Id(campaignId, req.userId())) {
             throw new ConflictException("Пользователь уже есть в компании");
         }
 
-        if (req.roleInCampaign() == CampaignRole.GM && !user.equals(campaign.getGm()) ){
-            throw new ForbiddenException("Только Гейм-мастер этой кампании должен иметь роль 'Гейм-мастер'");
+        if (req.roleInCampaign() == CampaignRole.GM && !user.getId().equals(campaign.getGm().getId())) {
+            throw new ForbiddenException("Нельзя назначить второго GM. Передайте GM-ство явно.");
         }
 
-        CampaignMember campaignMember = new CampaignMember().builder()
+        CampaignMember campaignMember = CampaignMember.builder()
+            .id(new CampaignMemberId(campaignId, user.getId()))
             .campaign(campaign)
             .user(user)
             .roleInCampaign(req.roleInCampaign())
@@ -70,14 +96,15 @@ public class CampaignServiceImpl implements CampaignService {
     }
 
 
-    @Transactional(readOnly = true)
     @Override
     public List<CampaignDto> findCampaignsByGm_Id(UUID gmId) {
-        return campaignRepository.findByGm_Id(gmId).stream().map(this::toDto).toList();
+        return campaignRepository.findByGm_Id(gmId)
+            .stream()
+            .map(this::toDto)
+            .toList();
     }
 
 
-    @Transactional(readOnly = true)
     @Override
     public CampaignDto findCampaignById(UUID id) {
         Campaign campaign = campaignRepository.findById(id)
@@ -91,7 +118,7 @@ public class CampaignServiceImpl implements CampaignService {
     private Campaign toEntity(CampaignCreateRequest req){
         return Campaign.builder()
             .name(req.name())
-            .description(req.description())
+            .description(req.description() == null ? null : req.description().trim())
             .build();
     }
 

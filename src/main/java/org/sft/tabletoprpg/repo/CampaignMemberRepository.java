@@ -15,8 +15,6 @@ public interface CampaignMemberRepository extends JpaRepository<CampaignMember, 
     List<CampaignMember> findByUser_Id(UUID userId);
     Optional<CampaignMember> findByCampaign_IdAndUser_Id(UUID campaignId, UUID userId);
     boolean existsByCampaign_IdAndUser_Id(UUID campaignId, UUID userId);
-    long countByCampaign_IdAndRoleInCampaign(UUID campaignId, CampaignRole role);
     void deleteByCampaign_IdAndUser_Id(UUID campaignId, UUID userId);
-
 
 }
