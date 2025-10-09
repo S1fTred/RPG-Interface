@@ -6,8 +6,7 @@ import lombok.*;
 import org.hibernate.annotations.Check;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
-
-import java.util.UUID;
+import org.sft.tabletoprpg.domain.compositeKeys.CharacterInventoryId;
 
 
 @ToString
@@ -20,33 +19,32 @@ import java.util.UUID;
 @Table(name = "character_inventory",
         uniqueConstraints = {
         @UniqueConstraint(columnNames = {"character_id", "item_id"})
+        },
+        indexes = {
+            @Index(name = "idx_charinv_item", columnList = "item_id"),
+            @Index(name = "idx_charinv_character", columnList = "character_id")
         })
 
 public class CharacterInventory {
 
-    @Id
-    @Column(updatable = false, nullable = false)
-    private UUID id;
+    @EmbeddedId
+    @EqualsAndHashCode.Include
+    private CharacterInventoryId id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "character_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
+    @MapsId("characterId")
     private Character character;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "item_id", nullable = false)
+    @MapsId("itemId")
     private Item item;
 
     @Column(nullable = false)
     @Min(1)
     private int quantity;
 
-
-    @PrePersist
-    public void prePersist(){
-        if (this.id == null) {
-            this.id = UUID.randomUUID();
-        }
-    }
 
 }

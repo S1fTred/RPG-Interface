@@ -25,6 +25,7 @@ public class Campaign {
 
     @Id
     @Column(nullable = false, updatable = false)
+    @EqualsAndHashCode.Include
     private UUID id;
 
     @Column(nullable = false)

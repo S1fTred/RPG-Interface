@@ -32,6 +32,7 @@ public class JournalEntry {
 
     @Id
     @Column(nullable = false, updatable = false)
+    @EqualsAndHashCode.Include
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

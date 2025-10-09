@@ -21,6 +21,7 @@ public class Item {
 
     @Id
     @Column(nullable = false, updatable = false)
+    @EqualsAndHashCode.Include
     private UUID id;
 
     @Column(nullable = false, length = 100)

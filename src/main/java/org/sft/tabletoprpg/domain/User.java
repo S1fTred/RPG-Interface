@@ -29,6 +29,7 @@ public class User {
 
     @Id
     @Column(nullable = false, updatable = false)
+    @EqualsAndHashCode.Include
     private UUID id;
 
     @Column(nullable = false, unique = true, length = 30)
@@ -43,6 +44,7 @@ public class User {
 
     @Column(nullable=false)
     @NotBlank(message = "Пароль не должен быть пустым")
+    @EqualsAndHashCode.Include
     private String passwordHash;
 
     @ElementCollection(fetch = FetchType.EAGER)
