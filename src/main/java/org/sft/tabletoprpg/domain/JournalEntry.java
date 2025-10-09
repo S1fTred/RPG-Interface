@@ -21,7 +21,10 @@ import java.util.UUID;
 @Builder
 @Table(name = "journal_entries",
         indexes = {
-                @Index(name = "idx_journal_campaign_created", columnList = "campaign_id, created_at desc")
+            @Index(name = "idx_journal_campaign_created_at", columnList = "campaign_id, created_at desc"),
+            @Index(name = "idx_journal_campaign_id", columnList = "campaign_id"),
+            @Index(name = "idx_journal_author_id", columnList = "author_id"),
+            @Index(name = "idx_journal_campaign_type", columnList = "campaign_id, type")
         }
 )
 

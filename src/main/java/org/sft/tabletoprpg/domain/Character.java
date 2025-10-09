@@ -19,20 +19,20 @@ import java.util.UUID;
 @Builder
 @Check(constraints = "level >= 1")
 @Check(constraints = "hp >= 0 AND hp <= max_hp")
-@Check(constraints = "attr_str BETWEEN 1 AND 30 AND " +
-        "attr_dex BETWEEN 1 AND 30 AND " +
-        "attr_con BETWEEN 1 AND 30 AND " +
-        "attr_int BETWEEN 1 AND 30 AND " +
-        "attr_wis BETWEEN 1 AND 30 AND " +
-        "attr_cha BETWEEN 1 AND 30")
+@Check(constraints = "strength BETWEEN 1 AND 30 AND " +
+        "agility BETWEEN 1 AND 30 AND " +
+        "stamina BETWEEN 1 AND 30 AND " +
+        "intelligence BETWEEN 1 AND 30 AND " +
+        "wisdom BETWEEN 1 AND 30 AND " +
+        "charisma BETWEEN 1 AND 30")
 @Entity
 @Table(name = "characters",
         uniqueConstraints = {
                 @UniqueConstraint(columnNames = {"campaign_id", "name"})
         },
         indexes = {
-                @Index(name = "idx_characters_owner", columnList = "owner_id"),
-                @Index(name = "idx_characters_campaign", columnList = "campaign_id")
+                @Index(name = "idx_characters_owner_id", columnList = "owner_id"),
+                @Index(name = "idx_characters_campaign_id", columnList = "campaign_id")
         })
 public class Character {
 
