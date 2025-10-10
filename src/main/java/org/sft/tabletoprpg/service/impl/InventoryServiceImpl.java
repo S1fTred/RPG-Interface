@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.sft.tabletoprpg.domain.Character;
 import org.sft.tabletoprpg.domain.CharacterInventory;
 import org.sft.tabletoprpg.domain.Item;
+import org.sft.tabletoprpg.domain.compositeKeys.CharacterInventoryId;
 import org.sft.tabletoprpg.repo.CharacterInventoryRepository;
 import org.sft.tabletoprpg.repo.CharacterRepository;
 import org.sft.tabletoprpg.repo.ItemRepository;
@@ -64,33 +65,45 @@ public class InventoryServiceImpl implements InventoryService {
 
         UUID ownerId = character.getOwner().getId();
         UUID gmId = character.getCampaign().getGm().getId();
-        if (!requesterId.equals(ownerId) && !requesterId.equals(gmId)) {
-            throw new ForbiddenException("Нет прав на просмотр инвентаря персонажа");
-        }
 
-        Optional<CharacterInventory> existedCharacterInventory = characterInventoryRepository.findByCharacter_IdAndItem_Id(character.getId(), item.getId());
-
-        if (existedCharacterInventory.isEmpty()) {
-            if (delta < 0){
-                throw new BadRequestException("Нельзя списывать предмет, которого нет в инвентаре");
+        if (delta > 0){
+            if (!requesterId.equals(gmId)){
+                throw new ForbiddenException("Только ГМ может выдавать предметы персонажу");
             }
-            CharacterInventory newCharacterInventory = new  CharacterInventory();
-            newCharacterInventory.setItem(item);
-            newCharacterInventory.setCharacter(character);
-            newCharacterInventory.setQuantity(req.delta());
-            characterInventoryRepository.save(newCharacterInventory);
+
+            Optional<CharacterInventory> existedCharacterInventory = characterInventoryRepository.findByCharacter_IdAndItem_Id(character.getId(), item.getId());
+
+            if (existedCharacterInventory.isEmpty()) {
+                var entry = new CharacterInventory();
+                entry.setCharacter(character);
+                entry.setItem(item);
+                entry.setQuantity(delta);
+                entry.setId(new CharacterInventoryId(character.getId(), item.getId()));
+                characterInventoryRepository.save(entry);
+            } else {
+                var entry = existedCharacterInventory.get();
+                entry.setQuantity(entry.getQuantity() + delta);
+                characterInventoryRepository.save(entry);
+            }
             return;
         }
 
-        CharacterInventory newCharacterInventory = existedCharacterInventory.get();
-        int newQty = newCharacterInventory.getQuantity() + delta;
-        if (newQty <= 0) {
-            throw new BadRequestException("Итоговое количество должно быть больше 0");
+        if (!requesterId.equals(ownerId)) {
+            throw new ForbiddenException("Только владелец персонажа может расходовать/удалять предметы");
         }
 
-        newCharacterInventory.setQuantity(newQty);
-        characterInventoryRepository.save(newCharacterInventory);
+        var entry = characterInventoryRepository.findByCharacter_IdAndItem_Id(character.getId(), item.getId())
+            .orElseThrow(() -> new NotFoundException("Этого предмета нет в инвентаре"));
 
+        int newQty = entry.getQuantity() + delta; // delta отрицательная
+        if (newQty < 0) {
+            throw new BadRequestException("Нельзя списать больше, чем есть");
+        } else if (newQty == 0) {
+            characterInventoryRepository.delete(entry);
+        } else {
+            entry.setQuantity(newQty);
+            characterInventoryRepository.save(entry);
+        }
     }
 
 

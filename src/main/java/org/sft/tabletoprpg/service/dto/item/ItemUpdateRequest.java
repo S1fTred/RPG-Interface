@@ -10,5 +10,5 @@ public record ItemUpdateRequest(
     @NotBlank String name,
     String description,
     @PositiveOrZero @Digits(integer=6, fraction=2) BigDecimal weight,
-    @PositiveOrZero Integer value
+    @PositiveOrZero Integer price
 ) {}

@@ -13,6 +13,6 @@ public record ItemDto(
         String name,
         String description,
         BigDecimal weight,
-        Integer value,
+        Integer price,
         Instant createdAt
 ) { }
