@@ -28,14 +28,14 @@ public class CampaignController {
 
     private final CampaignService campaignService;
 
-    @PostMapping("/create")
+    @PostMapping("/crt")
     public ResponseEntity<CampaignDto> createCampaign(@AuthenticationPrincipal UserPrincipal me, @Valid @RequestBody CampaignCreateRequest req) {
         UUID gmId = me.getId();
         CampaignDto campaignDto = campaignService.createCampaign(gmId, req);
         return ResponseEntity.status(HttpStatus.CREATED).body(campaignDto);
     }
 
-    @DeleteMapping("/delete/{id}")
+    @DeleteMapping("/dlt/{id}")
     public ResponseEntity<Void> deleteCampaign(@AuthenticationPrincipal UserPrincipal me, @PathVariable UUID id) {
         campaignService.deleteCampaign(id, me.getId());
         return ResponseEntity.noContent().build();
@@ -48,37 +48,25 @@ public class CampaignController {
     }
 
     // Список кампаний указанного GM (через query-параметр)
-    @GetMapping("/")
+    @GetMapping("/list-by-gm")
     public ResponseEntity<List<CampaignDto>> listByGm(@RequestParam(name = "gmId") UUID gmId) {
         return ResponseEntity.ok(campaignService.findCampaignsByGm_Id(gmId));
     }
 
     // Список кампаний текущего пользователя как GM.
-    @GetMapping("/me")
+    @GetMapping("/list-by-me")
     public ResponseEntity<List<CampaignDto>> listMine(@AuthenticationPrincipal UserPrincipal me) {
         return ResponseEntity.ok(campaignService.findCampaignsByGm_Id(me.getId()));
     }
 
     @PostMapping("/{campaignId}/members")
-    public ResponseEntity<Void> addMemberToCampaign(@PathVariable("campaignId") UUID campaignId,
+    public ResponseEntity<Void> addMemberToCampaign(
+        @PathVariable("campaignId") UUID campaignId,
         @AuthenticationPrincipal UserPrincipal me,
-        @Valid @RequestBody AddMemberRequest req) {
+        @Valid @RequestBody AddMemberRequest req)
+    {
 
-        try {
-            var campaignIdFromBody = AddMemberRequest.class
-                .getDeclaredMethod("campaignId")
-                .invoke(req);
-            if (campaignIdFromBody instanceof UUID bodyId) {
-                if (!campaignId.equals(bodyId)) {
-                    throw new BadRequestException("campaignId в path и body должны совпадать");
-                }
-            }
-        } catch (NoSuchMethodException ignore) {
-            // у твоего AddMemberRequest нет campaignId — всё ок, пропускаем проверку
-        } catch (ReflectiveOperationException ignore) {
-            // если метод есть, но рефлексия не удалась — не блокируем, это не критично
-        }
-
+        if (req.campaignId() != null && !req.campaignId().equals(campaignId)) throw new BadRequestException("campaignId в path и body должны совпадать");
         campaignService.addMember(campaignId, me.getId(), req);
         return ResponseEntity.noContent().build();
     }

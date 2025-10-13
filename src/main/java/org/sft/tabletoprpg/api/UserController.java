@@ -24,13 +24,13 @@ public class UserController {
 
     private final UserService userService;
 
-    @PostMapping("/create")
+    @PostMapping("/crt")
     public ResponseEntity<UserDto> createUser(@Valid @RequestBody UserRegisterRequest userRequest){
         UserDto userDto = userService.createUser(userRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(userDto);
     }
 
-    @DeleteMapping("/delete/{id}")
+    @DeleteMapping("/dlt/{id}")
     public ResponseEntity<Void> deleteUserById(@PathVariable UUID id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();

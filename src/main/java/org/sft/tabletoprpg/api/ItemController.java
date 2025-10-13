@@ -27,7 +27,7 @@ public class ItemController {
 
     private final ItemService itemService;
 
-    @PostMapping("/create")
+    @PostMapping("/crt")
     public ResponseEntity<ItemDto> createItem(
         @AuthenticationPrincipal(expression = "id") UUID requesterId,
         @Valid @RequestBody ItemCreateRequest req,
@@ -40,7 +40,7 @@ public class ItemController {
         return ResponseEntity.created(location).body(ItemDto);
     }
 
-    @PatchMapping("/update/{itemId}")
+    @PatchMapping("/updt/{itemId}")
     public ResponseEntity<Void> updateItem(
         @PathVariable UUID itemId,
         @AuthenticationPrincipal(expression = "id") UUID requesterId,
@@ -50,7 +50,7 @@ public class ItemController {
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/delete/{itemId}")
+    @DeleteMapping("/dlt/{itemId}")
     public ResponseEntity<Void> deleteItem(
         @PathVariable UUID itemId,
         @AuthenticationPrincipal(expression = "id") UUID requesterId
@@ -59,13 +59,13 @@ public class ItemController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/get-item/{itemId}")
+    @GetMapping("/item-by-id/{itemId}")
     public ResponseEntity<ItemDto> getItemById(@PathVariable UUID itemId){
         ItemDto itemDto = itemService.getItem(itemId);
         return ResponseEntity.ok(itemDto);
     }
 
-    @GetMapping("/find-by-name-contains")
+    @GetMapping("/items-by-name-contains")
     public ResponseEntity<List<ItemDto>> findItemsByNameContains(
         @RequestParam(name = "query", required = false) String query
     ){

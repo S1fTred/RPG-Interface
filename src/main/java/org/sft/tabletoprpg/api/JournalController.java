@@ -7,6 +7,7 @@ import org.sft.tabletoprpg.service.JournalService;
 import org.sft.tabletoprpg.service.dto.journal.JournalEntryCreateRequest;
 import org.sft.tabletoprpg.service.dto.journal.JournalEntryDto;
 import org.sft.tabletoprpg.service.dto.journal.JournalEntryUpdateRequest;
+import org.sft.tabletoprpg.service.exception.BadRequestException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -33,6 +34,9 @@ public class JournalController {
         @Valid @RequestBody JournalEntryCreateRequest req,
         UriComponentsBuilder uriBuilder
     ){
+        if (req.campaignId() != null && !campaignId.equals(req.campaignId())) {
+            throw new BadRequestException("campaignId в path и body должны совпадать");
+        }
         JournalEntryDto journalEntryDto = journalService.createJournal(campaignId, gmId, req);
         URI location = uriBuilder
             .path("/api/journal-entries/{id}")

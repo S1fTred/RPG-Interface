@@ -27,7 +27,7 @@ public class CharacterController {
 
     private final CharacterService characterService;
 
-    @PostMapping("/create/{campaignId}")
+    @PostMapping("/crt/{campaignId}")
     public ResponseEntity<CharacterDto> createCharacter(
         @PathVariable UUID campaignId,
         @AuthenticationPrincipal(expression = "id") UUID requesterId,
@@ -38,17 +38,17 @@ public class CharacterController {
             throw new BadRequestException("Кампании не соответствуют");
         }
 
-        CharacterDto CharacterDto = characterService.createCharacter(req, requesterId);
+        CharacterDto characterDto = characterService.createCharacter(req, requesterId);
 
         URI location = uriBuilder
             .path("/api/characters/{id}")
-            .buildAndExpand(CharacterDto.id())
+            .buildAndExpand(characterDto.id())
             .toUri();
 
-        return ResponseEntity.created(location).body(CharacterDto);
+        return ResponseEntity.created(location).body(characterDto);
     }
 
-    @DeleteMapping("/delete/{characterId}")
+    @DeleteMapping("/dlt/{characterId}")
     public ResponseEntity<Void> deleteCharacter(
         @PathVariable UUID characterId,
         @AuthenticationPrincipal(expression = "id") UUID requesterId
