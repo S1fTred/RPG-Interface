@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface ItemService {
-    UUID createItem(ItemCreateRequest req, UUID requesterId);  // ADMIN
+    ItemDto createItem(ItemCreateRequest req, UUID requesterId);  // ADMIN
     void updateItem(UUID itemId, ItemUpdateRequest req, UUID requesterId); // ADMIN
     void deleteItem(UUID itemId, UUID requesterId); // ADMIN
     ItemDto getItem(UUID itemId);

@@ -7,12 +7,14 @@ import org.sft.tabletoprpg.service.CharacterService;
 import org.sft.tabletoprpg.service.dto.character.CharacterCreateRequest;
 import org.sft.tabletoprpg.service.dto.character.CharacterDto;
 import org.sft.tabletoprpg.service.exception.BadRequestException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,26 +38,45 @@ public class CharacterController {
             throw new BadRequestException("Кампании не соответствуют");
         }
 
+        CharacterDto CharacterDto = characterService.createCharacter(req, requesterId);
 
+        URI location = uriBuilder
+            .path("/api/characters/{id}")
+            .buildAndExpand(CharacterDto.id())
+            .toUri();
+
+        return ResponseEntity.created(location).body(CharacterDto);
+    }
+
+    @DeleteMapping("/delete/{characterId}")
+    public ResponseEntity<Void> deleteCharacter(
+        @PathVariable UUID characterId,
+        @AuthenticationPrincipal(expression = "id") UUID requesterId
+    ){
+        characterService.deleteCharacter(characterId, requesterId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/by-campaign-id/{campaignId}")
-    public List<CharacterDto> listByCampaign(@PathVariable UUID campaignId){
-
+    public ResponseEntity<List<CharacterDto>> listByCampaign(@PathVariable UUID campaignId){
+        List<CharacterDto> list = characterService.findCharactersByCampaign_Id(campaignId);
+        return ResponseEntity.ok(list);
     }
 
     @GetMapping("/by-owner-id/{ownerId}")
-    public List<CharacterDto> listByOwner(@PathVariable UUID ownerId){
-
+    public ResponseEntity<List<CharacterDto>> listByOwner(@PathVariable UUID ownerId){
+        List<CharacterDto> list = characterService.findCharactersByOwner_Id(ownerId);
+        return ResponseEntity.ok(list);
     }
 
     @PatchMapping("/set-hp/{characterId}")
-    public CharacterDto setHp(
+    public ResponseEntity<CharacterDto> setHp(
         @PathVariable UUID characterId,
         @AuthenticationPrincipal(expression = "id") UUID requesterId,
-        @RequestParam("hp") int
+        @RequestParam("hp") int newHp
     ){
-
+        CharacterDto characterDto = characterService.setHp(characterId, newHp, requesterId);
+        return ResponseEntity.ok(characterDto);
     }
 
 }

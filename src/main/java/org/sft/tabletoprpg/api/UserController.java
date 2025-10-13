@@ -30,6 +30,12 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(userDto);
     }
 
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<Void> deleteUserById(@PathVariable UUID id) {
+        userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<UserDto> getUserById(@PathVariable UUID id) {
         UserDto userDto = userService.findUserById(id);
@@ -42,11 +48,7 @@ public class UserController {
         return ResponseEntity.ok(userDto);
     }
 
-    @DeleteMapping("/delete/{id}")
-    public ResponseEntity<Void> deleteUserById(@PathVariable UUID id) {
-        userService.deleteUser(id);
-        return ResponseEntity.noContent().build();
-    }
+
 
 
 

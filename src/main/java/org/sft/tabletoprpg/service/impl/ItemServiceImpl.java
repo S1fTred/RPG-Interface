@@ -32,7 +32,7 @@ public class ItemServiceImpl implements ItemService {
 
     @Transactional
     @Override
-    public UUID createItem(ItemCreateRequest req, UUID requesterId) {
+    public ItemDto createItem(ItemCreateRequest req, UUID requesterId) {
 
         User requester = userRepository.findById(requesterId)
             .orElseThrow(()-> new NotFoundException("Пользователь не найден"));
@@ -60,7 +60,7 @@ public class ItemServiceImpl implements ItemService {
         item.setPrice(req.price());
 
         itemRepository.save(item);
-        return item.getId();
+        return toDto(item);
     }
 
     @Transactional

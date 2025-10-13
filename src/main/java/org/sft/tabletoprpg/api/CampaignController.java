@@ -49,14 +49,14 @@ public class CampaignController {
 
     // Список кампаний указанного GM (через query-параметр)
     @GetMapping("/")
-    public List<CampaignDto> listByGm(@RequestParam(name = "gmId") UUID gmId) {
-        return campaignService.findCampaignsByGm_Id(gmId);
+    public ResponseEntity<List<CampaignDto>> listByGm(@RequestParam(name = "gmId") UUID gmId) {
+        return ResponseEntity.ok(campaignService.findCampaignsByGm_Id(gmId));
     }
 
     // Список кампаний текущего пользователя как GM.
     @GetMapping("/me")
-    public List<CampaignDto> listMine(@AuthenticationPrincipal UserPrincipal me) {
-        return campaignService.findCampaignsByGm_Id(me.getId());
+    public ResponseEntity<List<CampaignDto>> listMine(@AuthenticationPrincipal UserPrincipal me) {
+        return ResponseEntity.ok(campaignService.findCampaignsByGm_Id(me.getId()));
     }
 
     @PostMapping("/{campaignId}/members")
