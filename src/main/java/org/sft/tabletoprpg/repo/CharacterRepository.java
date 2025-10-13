@@ -15,6 +15,5 @@ public interface CharacterRepository extends JpaRepository<org.sft.tabletoprpg.d
     boolean existsByCampaign_Id(UUID campaignId);
     boolean existsByIdAndOwner_Id(UUID characterId, UUID ownerId);
     boolean existsByIdAndCampaign_Id(UUID characterId, UUID campaignId);
-    boolean existsByCampaign_IdAndUser_Id(UUID campaignId, UUID ownerID);
     Optional<org.sft.tabletoprpg.domain.Character> findByIdAndCampaign_Id(UUID characterId, UUID campaignId);
 }

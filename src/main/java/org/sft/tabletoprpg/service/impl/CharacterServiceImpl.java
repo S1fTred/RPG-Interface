@@ -62,9 +62,7 @@ public class CharacterServiceImpl implements CharacterService {
             throw new ForbiddenException("Нет прав на создание(редактирвоание) персонажа в этой кампании");
         }
 
-        boolean isGm = campaign.getGm().getId().equals(owner.getId());
-        boolean isMember = isGm ||
-            campaignMemberRepository.existsByCampaign_IdAndUser_Id(req.campaignId(), req.ownerId());
+        boolean isMember = campaignMemberRepository.existsByCampaign_IdAndUser_Id(req.campaignId(), req.ownerId());
         if (!isMember){
             throw new ForbiddenException("Владелец персонажа должен быть участником кампании");
         }

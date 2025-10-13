@@ -21,8 +21,9 @@ import java.util.UUID;
 @NoArgsConstructor @AllArgsConstructor
 @Entity
 @Table(name = "users", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"username", "email"})
-})
+    @UniqueConstraint(columnNames = {"username"}),
+    @UniqueConstraint(columnNames = {"email"})
+    })
 @ToString(exclude = {"passwordHash"})
 @Builder
 public class User {
