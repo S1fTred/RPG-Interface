@@ -31,7 +31,7 @@ CREATE TABLE campaign_members (
                                   campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
                                   user_id     UUID NOT NULL REFERENCES users(id)      ON DELETE CASCADE,
                                   role_in_campaign VARCHAR(16) NOT NULL, -- GM | PLAYER
-                                  joined_at   TIMESTAMPTZ      NOT NULL DEFAULT now(),
+                                  joined_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
                                   PRIMARY KEY (campaign_id, user_id)
 );
 
@@ -63,7 +63,7 @@ CREATE TABLE items (
                        name VARCHAR(100) NOT NULL,
                        description TEXT,
                        weight NUMERIC(10,2),
-                       value INT
+                       price INT
 );
 
 -- ================== CHARACTER INVENTORY ==================
@@ -94,4 +94,4 @@ CREATE TABLE journal_entries (
 CREATE INDEX idx_journal_campaign_id ON journal_entries (campaign_id);
 CREATE INDEX idx_journal_author_id ON journal_entries (author_id);
 CREATE INDEX idx_journal_campaign_type ON journal_entries (campaign_id, type);
-CREATE INDEX idx_journal_campaign_created_at ON journal_entries (campaign_id, created_at desc)
+CREATE INDEX idx_journal_campaign_created_at ON journal_entries (campaign_id, created_at)

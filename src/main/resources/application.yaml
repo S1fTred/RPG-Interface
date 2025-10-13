@@ -3,25 +3,27 @@ spring:
     name: tabletop_rpg
 
   datasource:
-    url: "jdbc:h2:file:E:/DataBase/RPG_DB;AUTO_SERVER=TRUE"
+    # DB_CLOSE_DELAY=-1 -> держит БД открытой, пока работает JVM (удобно для dev).
+    # DB_CLOSE_ON_EXIT=FALSE -> не закрывать при завершении (безопасней с пулом).
+    # "jdbc:h2:file:C:/Users/User/IdeaProjects/RPG-Interface/DataBase/RPG_DB;AUTO_SERVER=TRUE"
+    url: jdbc:h2:mem:RPG_DB;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
     username: sft
     password: 465522
     driver-class-name: org.h2.Driver
 
-#  sql:
-#    init:
-#      mode: always         # или "embedded" — если только для H2
-#      schema-locations: classpath:schema.sql
+  sql:
+    init:
+      mode: always         # или "embedded" — если только для H2
+      schema-locations: classpath:schema.sql
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     open-in-view: false        # отключаем OSIV, работаем с ленивыми данными в транзакции
     properties:
       hibernate:
         format_sql: true
         jdbc.time_zone: UTC    # корректные Instant-ы и timestamp-ы
-    show-sql: true
 
   h2:
     console:
