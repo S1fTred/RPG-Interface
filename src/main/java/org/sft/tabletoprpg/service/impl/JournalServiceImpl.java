@@ -32,6 +32,23 @@ public class JournalServiceImpl implements JournalService {
     private final UserRepository userRepository;
     private final CampaignMemberRepository campaignMemberRepository;
 
+    @Override
+    public JournalEntryDto getJournalById(UUID entryId, UUID requesterId) {
+        JournalEntry entry = journalEntryRepository.findById(entryId)
+            .orElseThrow(() -> new NotFoundException("Запись не найдена"));
+
+        UUID campaignId = entry.getCampaign().getId();
+        boolean isGm = entry.getCampaign().getGm().getId().equals(requesterId);
+        boolean isMember = isGm || campaignMemberRepository.existsByCampaign_IdAndUser_Id(campaignId, requesterId);
+        if (!isMember) {
+            throw new ForbiddenException("Доступ только для участников кампании");
+        }
+
+        if (!isGm && entry.getVisibility() != JournalVisibility.PLAYERS) {
+            throw new ForbiddenException("Нет доступа к записи (GM_ONLY)");
+        }
+        return toDto(entry);
+    }
 
     @Override
     public List<JournalEntryDto> findJournalsByCampaign_Id(UUID campaignId) {

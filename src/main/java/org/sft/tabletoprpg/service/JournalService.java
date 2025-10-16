@@ -9,6 +9,8 @@ import java.util.UUID;
 
 public interface JournalService {
 
+    JournalEntryDto getJournalById(UUID entryId, UUID requesterId);
+
     List<JournalEntryDto> findJournalsByCampaign_Id(UUID campaignId);
 
     // РЕКОМЕНДУЕМЫЕ сигнатуры (контроллер: /campaigns/{campaignId}/journal)

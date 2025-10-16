@@ -50,22 +50,18 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<LoginResponse> refresh(@Valid @RequestBody RefreshTokenRequest req) {
         var claims = jwtService.parseAndValidate(req.refreshToken());
-        var userId = claims.get("userId", String.class);
-        if (userId == null) throw new BadRequestException("Invalid refresh token");
+        var username = claims.getSubject();
+        if (username == null || username.isBlank()) {
+            throw new BadRequestException("Invalid refresh token");
+        }
 
-        // Собери UserPrincipal (как в фильтре):
-        var p = new UserPrincipal(java.util.UUID.fromString(userId),
-            claims.getSubject(), // username
-            "N/A", java.util.List.of() // пароль и роли можно перезагрузить из БД при желании
-        );
-        // Лучше перезагрузить пользователя из БД по userId и сделать UserPrincipal.from(user).
-        // Явно:
-        // var user = userRepository.findById(UUID.fromString(userId)).orElseThrow(...);
-        // var p = UserPrincipal.from(user);
+        var ud = userDetailsService.loadUserByUsername(username);
+        if (!(ud instanceof UserPrincipal p)) {
+            throw new BadRequestException("Bad principal type");
+        }
 
         var newAccess = jwtService.generateAccessToken(p);
-        // при необходимости — выдать новый refresh (или вернуть тот же):
-        var newRefresh = jwtService.generateRefreshToken(p);
+        var newRefresh = jwtService.generateRefreshToken(p); // если у тебя одноразовый refresh — ок; если многоразовый — можешь вернуть старый
 
         return ResponseEntity.ok(new LoginResponse(newAccess, newRefresh));
     }

@@ -21,13 +21,32 @@ import java.util.UUID;
 @Slf4j
 @Validated
 @RestController
-@RequestMapping("/api/journals")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 public class JournalController {
 
     private final JournalService journalService;
 
-    @PostMapping("/create/{campaignId}")
+    // ---------- CREATE ----------
+    // Legacy: POST /api/journals/create/{campaignId}
+    @PostMapping("/journals/create/{campaignId}")
+    public ResponseEntity<JournalEntryDto> createJournalLegacy(
+        @PathVariable UUID campaignId,
+        @AuthenticationPrincipal(expression = "id") UUID gmId,
+        @Valid @RequestBody JournalEntryCreateRequest req,
+        UriComponentsBuilder uriBuilder
+    ){
+        if (req.campaignId() != null && !campaignId.equals(req.campaignId())) {
+            throw new BadRequestException("campaignId в path и body должны совпадать");
+        }
+        JournalEntryDto dto = journalService.createJournal(campaignId, gmId, req);
+        URI location = uriBuilder.path("/api/campaigns/{cid}/journal/{id}")
+            .buildAndExpand(dto.campaignId(), dto.id()).toUri();
+        return ResponseEntity.created(location).body(dto);
+    }
+
+    // Canonical: POST /api/campaigns/{campaignId}/journal
+    @PostMapping("/campaigns/{campaignId}/journal")
     public ResponseEntity<JournalEntryDto> createJournal(
         @PathVariable UUID campaignId,
         @AuthenticationPrincipal(expression = "id") UUID gmId,
@@ -37,26 +56,39 @@ public class JournalController {
         if (req.campaignId() != null && !campaignId.equals(req.campaignId())) {
             throw new BadRequestException("campaignId в path и body должны совпадать");
         }
-        JournalEntryDto journalEntryDto = journalService.createJournal(campaignId, gmId, req);
-        URI location = uriBuilder
-            .path("/api/journal-entries/{id}")
-            .buildAndExpand(journalEntryDto.id())
-            .toUri();
-        return ResponseEntity.created(location).body(journalEntryDto);
+        JournalEntryDto dto = journalService.createJournal(campaignId, gmId, req);
+        URI location = uriBuilder.path("/api/campaigns/{cid}/journal/{id}")
+            .buildAndExpand(dto.campaignId(), dto.id()).toUri();
+        return ResponseEntity.created(location).body(dto);
     }
 
-    @PatchMapping("/update/{entryId}")
-    public ResponseEntity<JournalEntryDto> updateJournal(
+    // ---------- UPDATE ----------
+    // Legacy: PATCH /api/journals/update/{entryId}
+    @PatchMapping("/journals/update/{entryId}")
+    public ResponseEntity<JournalEntryDto> updateJournalLegacy(
         @PathVariable UUID entryId,
         @AuthenticationPrincipal(expression = "id") UUID gmId,
         @Valid @RequestBody JournalEntryUpdateRequest req
     ){
-        JournalEntryDto journalEntryDto = journalService.updateJournal(entryId, gmId, req);
-        return ResponseEntity.ok(journalEntryDto);
+        return ResponseEntity.ok(journalService.updateJournal(entryId, gmId, req));
     }
 
-    @DeleteMapping("/delete/{entryId}")
-    public ResponseEntity<Void> deleteJournal(
+    // Canonical: PATCH /api/campaigns/{campaignId}/journal/{entryId}
+    @PatchMapping("/campaigns/{campaignId}/journal/{entryId}")
+    public ResponseEntity<JournalEntryDto> updateJournal(
+        @PathVariable UUID campaignId,
+        @PathVariable UUID entryId,
+        @AuthenticationPrincipal(expression = "id") UUID gmId,
+        @Valid @RequestBody JournalEntryUpdateRequest req
+    ){
+        // кампания берётся из записи; campaignId используется для читаемого URL
+        return ResponseEntity.ok(journalService.updateJournal(entryId, gmId, req));
+    }
+
+    // ---------- DELETE ----------
+    // Legacy: DELETE /api/journals/delete/{entryId}
+    @DeleteMapping("/journals/delete/{entryId}")
+    public ResponseEntity<Void> deleteJournalLegacy(
         @PathVariable UUID entryId,
         @AuthenticationPrincipal(expression = "id") UUID gmId
     ){
@@ -64,18 +96,55 @@ public class JournalController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/list-journals/{campaignId}")
-    public ResponseEntity<List<JournalEntryDto>> listJournal(
+    // Canonical: DELETE /api/campaigns/{campaignId}/journal/{entryId}
+    @DeleteMapping("/campaigns/{campaignId}/journal/{entryId}")
+    public ResponseEntity<Void> deleteJournal(
+        @PathVariable UUID campaignId,
+        @PathVariable UUID entryId,
+        @AuthenticationPrincipal(expression = "id") UUID gmId
+    ){
+        journalService.deleteJournal(entryId, gmId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ---------- READ ----------
+    // Legacy: GET /api/journals/list-journals/{campaignId}
+    @GetMapping("/journals/list-journals/{campaignId}")
+    public ResponseEntity<List<JournalEntryDto>> listJournalLegacy(
         @PathVariable UUID campaignId,
         @AuthenticationPrincipal(expression = "id") UUID requesterId,
         @RequestParam(name = "type", required = false) String type,
         @RequestParam(name = "onlyPlayersVisible", required = false) Boolean onlyPlayersVisible
     ){
-        List<JournalEntryDto> list = journalService.listJournals(campaignId, requesterId, type, onlyPlayersVisible);
-        return ResponseEntity.ok(list);
+        return ResponseEntity.ok(
+            journalService.listJournals(campaignId, requesterId, type, onlyPlayersVisible)
+        );
     }
 
+    // Canonical: GET /api/campaigns/{campaignId}/journal?type=...&include=all
+    @GetMapping("/campaigns/{campaignId}/journal")
+    public ResponseEntity<List<JournalEntryDto>> listJournal(
+        @PathVariable UUID campaignId,
+        @AuthenticationPrincipal(expression = "id") UUID requesterId,
+        @RequestParam(name = "type", required = false) String type,
+        @RequestParam(name = "include", required = false) String include
+    ){
+        // include=all → для GM показать все; иначе игрокам только PLAYERS
+        Boolean onlyPlayersVisible = (include == null || !"all".equalsIgnoreCase(include));
+        return ResponseEntity.ok(
+            journalService.listJournals(campaignId, requesterId, type, onlyPlayersVisible)
+        );
+    }
 
-
-
+    // Canonical: GET /api/campaigns/{campaignId}/journal/{entryId}
+    @GetMapping("/campaigns/{campaignId}/journal/{entryId}")
+    public ResponseEntity<JournalEntryDto> getJournalById(
+        @PathVariable UUID campaignId,
+        @PathVariable UUID entryId,
+        @AuthenticationPrincipal(expression = "id") UUID requesterId
+    ){
+        return ResponseEntity.ok(
+            journalService.getJournalById(entryId, requesterId)
+        );
+    }
 }
