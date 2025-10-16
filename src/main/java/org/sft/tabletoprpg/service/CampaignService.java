@@ -1,8 +1,6 @@
 package org.sft.tabletoprpg.service;
 
-import org.sft.tabletoprpg.service.dto.campaign.CampaignCreateRequest;
-import org.sft.tabletoprpg.service.dto.campaign.CampaignDto;
-import org.sft.tabletoprpg.service.dto.campaign.AddMemberRequest;
+import org.sft.tabletoprpg.service.dto.campaign.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -11,12 +9,20 @@ public interface CampaignService {
 
     CampaignDto createCampaign(UUID gmId, CampaignCreateRequest req);
 
-    void deleteCampaign(UUID gmId, UUID campaignId);
+    CampaignDto updateCampaign(UUID campaignId, UUID requesterId, CampaignUpdateRequest req);
 
-    void addMember(UUID campaignId, UUID gmId, AddMemberRequest req);
+    void deleteCampaign(UUID campaignId, UUID requesterId);
+
+    CampaignDto findCampaignById(UUID id);
+
+    List<CampaignDto> findMyCampaigns(UUID gmId);
 
     List<CampaignDto> findCampaignsByGm_Id(UUID gmId);
 
-    CampaignDto findCampaignById(UUID id);
+    void addMember(UUID campaignId, UUID requesterId, AddMemberRequest req);
+
+    List<CampaignMemberDto> listMembers(UUID campaignId, UUID requesterId);
+
+    void removeMember(UUID campaignId, UUID userId, UUID requesterId);
 
 }
