@@ -10,10 +10,7 @@ import org.sft.tabletoprpg.repo.CampaignRepository;
 import org.sft.tabletoprpg.repo.CharacterRepository;
 import org.sft.tabletoprpg.repo.UserRepository;
 import org.sft.tabletoprpg.service.CharacterService;
-import org.sft.tabletoprpg.service.dto.character.CharacterCreateRequest;
-import org.sft.tabletoprpg.service.dto.character.CharacterDto;
-import org.sft.tabletoprpg.service.dto.character.AttributesDto;
-import org.sft.tabletoprpg.service.dto.character.HpPatchRequest;
+import org.sft.tabletoprpg.service.dto.character.*;
 import org.sft.tabletoprpg.service.exception.BadRequestException;
 import org.sft.tabletoprpg.service.exception.ForbiddenException;
 import org.sft.tabletoprpg.service.exception.NotFoundException;
@@ -88,14 +85,12 @@ public class CharacterServiceImpl implements CharacterService {
             throw new BadRequestException("В этой кампании уже есть персонаж с таким именем");
         }
 
-
         Character character = toEntity(req);
         character.setName(name);
         character.setClazz(clazz);
         character.setRace(race);
         character.setOwner(owner);
         character.setCampaign(campaign);
-
 
         int hp = character.getHp();
         int maxHp = character.getMaxHp();
@@ -107,6 +102,66 @@ public class CharacterServiceImpl implements CharacterService {
         return toDto(character);
     }
 
+    @Transactional
+    @Override
+    public CharacterDto updateCharacter(UUID characterId, CharacterUpdateRequest req, UUID requesterId) {
+        Character character = characterRepository.findById(characterId)
+            .orElseThrow(() -> new NotFoundException("Персонаж не найден"));
+
+        UUID ownerId = character.getOwner().getId();
+        UUID gmId = character.getCampaign().getGm().getId();
+        if (!requesterId.equals(ownerId) && !requesterId.equals(gmId)) {
+            throw new ForbiddenException("Нет прав на редактирование этого персонажа");
+        }
+
+        // name / clazz / race
+        if (req.name() != null) {
+            String name = req.name().trim();
+            if (name.isEmpty()) throw new BadRequestException("Имя персонажа не должно быть пустым");
+            boolean taken = characterRepository.existsByCampaign_IdAndNameIgnoreCase(
+                character.getCampaign().getId(), name
+            );
+            if (taken && !name.equalsIgnoreCase(character.getName())) {
+                throw new BadRequestException("В этой кампании уже есть персонаж с таким именем");
+            }
+            character.setName(name);
+        }
+        if (req.clazz() != null) {
+            String clazz = req.clazz().trim();
+            if (clazz.isEmpty()) throw new BadRequestException("Класс не должен быть пустым");
+            character.setClazz(clazz);
+        }
+        if (req.race() != null) {
+            String race = req.race().trim();
+            if (race.isEmpty()) throw new BadRequestException("Раса не должна быть пустой");
+            character.setRace(race);
+        }
+
+        // level
+        if (req.level() != null) {
+            if (req.level() < 1) throw new BadRequestException("Уровень должен быть ≥ 1");
+            character.setLevel(req.level());
+        }
+
+        // maxHp (hp инвариант)
+        if (req.maxHp() != null) {
+            if (req.maxHp() < 1) throw new BadRequestException("Максимальный HP должен быть ≥ 1");
+            if (character.getHp() > req.maxHp()) {
+                throw new BadRequestException("Нельзя уменьшить maxHp ниже текущего HP");
+            }
+            character.setMaxHp(req.maxHp());
+        }
+
+        // attributes (DTO -> domain)
+        if (req.attributes() != null) {
+            character.setAtributes(mapAttributes(req.attributes())); // поле с опечаткой в домене
+        }
+
+        characterRepository.save(character);
+        return toDto(character);
+    }
+
+    @Transactional
     @Override
     public void deleteCharacter(UUID characterId, UUID requesterId) {
         Character character = characterRepository.findById(characterId)

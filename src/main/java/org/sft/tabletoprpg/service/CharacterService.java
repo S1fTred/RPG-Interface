@@ -2,6 +2,7 @@ package org.sft.tabletoprpg.service;
 
 import org.sft.tabletoprpg.service.dto.character.CharacterCreateRequest;
 import org.sft.tabletoprpg.service.dto.character.CharacterDto;
+import org.sft.tabletoprpg.service.dto.character.CharacterUpdateRequest;
 import org.sft.tabletoprpg.service.dto.character.HpPatchRequest;
 
 import java.util.List;
@@ -10,6 +11,8 @@ import java.util.UUID;
 public interface CharacterService {
 
     CharacterDto createCharacter(CharacterCreateRequest req, UUID requesterId);
+
+    CharacterDto updateCharacter(UUID characterId, CharacterUpdateRequest req, UUID requesterId);
 
     void deleteCharacter(UUID characterId,  UUID requesterId);
 
