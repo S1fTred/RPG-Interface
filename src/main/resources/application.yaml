@@ -6,16 +6,20 @@ spring:
   datasource:
     # DB_CLOSE_DELAY=-1 -> держит БД открытой, пока работает JVM (удобно для dev).
     # DB_CLOSE_ON_EXIT=FALSE -> не закрывать при завершении (безопасней с пулом).
-    # "jdbc:h2:file:C:/Users/User/IdeaProjects/RPG-Interface/DataBase/RPG_DB;AUTO_SERVER=TRUE"
-    url: jdbc:h2:mem:RPG_DB;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+    # "jdbc:h2:mem:RPG_DB;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"
+    url: jdbc:h2:file:./db/rpg_db;AUTO_SERVER=TRUE;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
     username: sft
     password: 465522
     driver-class-name: org.h2.Driver
 
   sql:
     init:
-      mode: always         # или "embedded" — если только для H2
+      # На 1-м запуске: always  (создаст таблицы из schema.sql)
+      # После успешного старта можно переключить на: never
+      mode: always
       schema-locations: classpath:schema.sql
+      # если schema.sql может падать при повторном запуске - можно добавить:
+      # continue-on-error: true
 
   jpa:
     hibernate:
@@ -30,6 +34,9 @@ spring:
     console:
       enabled: true
       path: /h2-console
+  # при необходимости открыть из других хостов:
+  # settings:
+  #   web-allow-others: true
 
   flyway:
     enabled: false
