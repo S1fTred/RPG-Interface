@@ -2,6 +2,7 @@ spring:
   application:
     name: tabletop_rpg
 
+
   datasource:
     # DB_CLOSE_DELAY=-1 -> держит БД открытой, пока работает JVM (удобно для dev).
     # DB_CLOSE_ON_EXIT=FALSE -> не закрывать при завершении (безопасней с пулом).
@@ -32,3 +33,25 @@ spring:
 
   flyway:
     enabled: false
+
+---
+# ========================
+# JWT (Bearer) Authentication
+# ========================
+security:
+  jwt:
+    # Секрет для подписи токенов (на проде подставляется из переменной окружения JWT_SECRET)
+    secret: ${JWT_SECRET:change-me-dev-secret-at-least-32-bytes-long}
+
+    # Время жизни токенов (можно "900s", "15m", "PT15M")
+    access-ttl: 900s      # Access-токен: 15 минут
+    refresh-ttl: 7d       # Refresh-токен: 7 дней
+
+---
+# ========================
+# Сервер (порт и пр.)
+# ========================
+server:
+  port: 8080
+  error:
+    include-message: always

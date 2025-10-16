@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.sft.tabletoprpg.service.CharacterService;
 import org.sft.tabletoprpg.service.dto.character.CharacterCreateRequest;
 import org.sft.tabletoprpg.service.dto.character.CharacterDto;
+import org.sft.tabletoprpg.service.dto.character.HpPatchRequest;
 import org.sft.tabletoprpg.service.exception.BadRequestException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -70,13 +71,14 @@ public class CharacterController {
     }
 
     @PatchMapping("/set-hp/{characterId}")
-    public ResponseEntity<CharacterDto> setHp(
+    public ResponseEntity<CharacterDto> patchHp(
         @PathVariable UUID characterId,
         @AuthenticationPrincipal(expression = "id") UUID requesterId,
-        @RequestParam("hp") int newHp
+        @RequestParam(value = "hp", required = false) Integer hpParam,
+        @RequestBody(required = false) HpPatchRequest body
     ){
-        CharacterDto characterDto = characterService.setHp(characterId, newHp, requesterId);
-        return ResponseEntity.ok(characterDto);
+        CharacterDto dto = characterService.patchHp(characterId, hpParam, body, requesterId);
+        return ResponseEntity.ok(dto);
     }
 
 }

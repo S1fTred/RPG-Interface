@@ -53,7 +53,7 @@ public class CampaignController {
         return ResponseEntity.ok(campaignService.findCampaignsByGm_Id(gmId));
     }
 
-    // Список кампаний текущего пользователя как GM.
+    // Список кампаний текущего пользователя как GM.  (Get My Campaigns (GM))
     @GetMapping("/list-by-me")
     public ResponseEntity<List<CampaignDto>> listMine(@AuthenticationPrincipal UserPrincipal me) {
         return ResponseEntity.ok(campaignService.findCampaignsByGm_Id(me.getId()));
