@@ -107,6 +107,122 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
 
+    @Transactional
+    @Override
+    public void giveItem(UUID characterId, UUID itemId, int quantity, UUID requesterId) {
+        if (quantity < 1) throw new BadRequestException("Количество должно быть ≥ 1");
+
+        var character = characterRepository.findById(characterId)
+            .orElseThrow(() -> new NotFoundException("Персонаж не найден"));
+        var item = itemRepository.findById(itemId)
+            .orElseThrow(() -> new NotFoundException("Предмет не найден"));
+
+        UUID gmId = character.getCampaign().getGm().getId();
+        if (!requesterId.equals(gmId)) {
+            throw new ForbiddenException("Только ГМ может выдавать предметы персонажу");
+        }
+
+        var id = new CharacterInventoryId(characterId, itemId);
+        var entryOpt = characterInventoryRepository.findById(id);
+
+        if (entryOpt.isEmpty()) {
+            var entry = new CharacterInventory();
+            entry.setId(id);
+            entry.setCharacter(character);
+            entry.setItem(item);
+            entry.setQuantity(quantity);
+            characterInventoryRepository.save(entry);
+        } else {
+            var entry = entryOpt.get();
+            entry.setQuantity(entry.getQuantity() + quantity);
+            characterInventoryRepository.save(entry);
+        }
+    }
+
+    @Transactional
+    @Override
+    public void consumeItem(UUID characterId, UUID itemId, int quantity, UUID requesterId) {
+        if (quantity < 1) throw new BadRequestException("Количество должно быть ≥ 1");
+
+        var character = characterRepository.findById(characterId)
+            .orElseThrow(() -> new NotFoundException("Персонаж не найден"));
+        var entry = characterInventoryRepository.findByCharacter_IdAndItem_Id(characterId, itemId)
+            .orElseThrow(() -> new NotFoundException("Этого предмета нет в инвентаре"));
+
+        UUID ownerId = character.getOwner().getId();
+        if (!requesterId.equals(ownerId)) {
+            throw new ForbiddenException("Только владелец персонажа может расходовать предметы");
+        }
+
+        int newQty = entry.getQuantity() - quantity;
+        if (newQty < 0) throw new BadRequestException("Нельзя списать больше, чем есть");
+        if (newQty == 0) {
+            characterInventoryRepository.delete(entry);
+        } else {
+            entry.setQuantity(newQty);
+            characterInventoryRepository.save(entry);
+        }
+    }
+
+    @Transactional
+    @Override
+    public void setQuantity(UUID characterId, UUID itemId, int quantity, UUID requesterId) {
+        if (quantity < 0) throw new BadRequestException("Количество должно быть ≥ 0");
+
+        var character = characterRepository.findById(characterId)
+            .orElseThrow(() -> new NotFoundException("Персонаж не найден"));
+        var item = itemRepository.findById(itemId)
+            .orElseThrow(() -> new NotFoundException("Предмет не найден"));
+
+        // Политика: устанавливать абсолютное количество может только GM
+        UUID gmId = character.getCampaign().getGm().getId();
+        if (!requesterId.equals(gmId)) {
+            throw new ForbiddenException("Только ГМ может устанавливать количество предмета");
+        }
+
+        var id = new CharacterInventoryId(characterId, itemId);
+        var entryOpt = characterInventoryRepository.findById(id);
+
+        if (quantity == 0) {
+            entryOpt.ifPresent(characterInventoryRepository::delete);
+            return;
+        }
+
+        if (entryOpt.isEmpty()) {
+            var entry = new CharacterInventory();
+            entry.setId(id);
+            entry.setCharacter(character);
+            entry.setItem(item);
+            entry.setQuantity(quantity);
+            characterInventoryRepository.save(entry);
+        } else {
+            var entry = entryOpt.get();
+            entry.setQuantity(quantity);
+            characterInventoryRepository.save(entry);
+        }
+    }
+
+    @Transactional
+    @Override
+    public void removeItem(UUID characterId, UUID itemId, UUID requesterId) {
+        var character = characterRepository.findById(characterId)
+            .orElseThrow(() -> new NotFoundException("Персонаж не найден"));
+
+        UUID gmId = character.getCampaign().getGm().getId();
+        UUID ownerId = character.getOwner().getId();
+
+        // Политика удаления «в ноль»: разрешим GM и владельцу
+        if (!requesterId.equals(gmId) && !requesterId.equals(ownerId)) {
+            throw new ForbiddenException("Нет прав на удаление предмета из инвентаря");
+        }
+
+        var id = new CharacterInventoryId(characterId, itemId);
+        var entry = characterInventoryRepository.findById(id)
+            .orElseThrow(() -> new NotFoundException("Этого предмета нет в инвентаре"));
+
+        characterInventoryRepository.delete(entry);
+    }
+
 
 
     //--------------------МАППЕРЫ----------------//

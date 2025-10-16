@@ -35,16 +35,20 @@ public class ItemServiceImpl implements ItemService {
     public ItemDto createItem(ItemCreateRequest req, UUID requesterId) {
 
         User requester = userRepository.findById(requesterId)
-            .orElseThrow(()-> new NotFoundException("Пользователь не найден"));
+            .orElseThrow(() -> new NotFoundException("Пользователь не найден"));
 
         if (!requester.getRoles().contains(Role.ADMIN)) {
             throw new ForbiddenException("Только администратор может добавлять предметы");
         }
 
         String name = req.name() == null ? null : req.name().trim();
-        if (name == null || name.isEmpty()) throw new BadRequestException("Название предмета не должно быть пустым");
+        if (name == null || name.isEmpty()) {
+            throw new BadRequestException("Название предмета не должно быть пустым");
+        }
 
-        if (itemRepository.existsByNameIgnoreCase(name)) throw new NotFoundException("Предмет с таким именем уже существует");
+        if (itemRepository.existsByNameIgnoreCase(name)) {
+            throw new ConflictException("Предмет с таким именем уже существует");
+        }
 
         if (req.weight() != null && req.weight().signum() < 0) {
             throw new BadRequestException("Вес не может быть отрицательным");
@@ -62,6 +66,7 @@ public class ItemServiceImpl implements ItemService {
         itemRepository.save(item);
         return toDto(item);
     }
+
 
     @Transactional
     @Override
