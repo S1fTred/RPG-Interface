@@ -8,6 +8,5 @@ import java.util.UUID;
 
 public record AddMemberRequest(
         @NotNull UUID userId,
-        @NotNull UUID campaignId,
-        @NotNull CampaignRole roleInCampaign
+        CampaignRole roleInCampaign
 ) { }

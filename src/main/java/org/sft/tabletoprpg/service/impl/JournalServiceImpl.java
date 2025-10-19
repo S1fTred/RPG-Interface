@@ -52,7 +52,8 @@ public class JournalServiceImpl implements JournalService {
 
     @Override
     public List<JournalEntryDto> findJournalsByCampaign_Id(UUID campaignId) {
-        return journalEntryRepository.findByCampaign_IdOrderByCreatedAtDesc(campaignId).stream().map(this::toDto).toList();
+        return journalEntryRepository.findByCampaign_IdOrderByCreatedAtDesc(campaignId)
+            .stream().map(this::toDto).toList();
     }
 
     @Override
@@ -67,7 +68,6 @@ public class JournalServiceImpl implements JournalService {
             throw new ForbiddenException("Доступ только для участников кампании");
         }
 
-        // нормализация
         String typeNorm = (type == null) ? null : type.trim();
         boolean onlyPlayers = (onlyPlayersVisible != null && onlyPlayersVisible);
 
@@ -94,20 +94,25 @@ public class JournalServiceImpl implements JournalService {
 
     @Transactional
     @Override
-    public JournalEntryDto createJournal(UUID campaignId, UUID gmId, JournalEntryCreateRequest req) {
+    public JournalEntryDto createJournal(UUID campaignId, UUID requesterId, JournalEntryCreateRequest req) {
         Campaign campaign = campaignRepository.findById(campaignId)
-                .orElseThrow(() -> new NotFoundException("Кампания не найдена"));
+            .orElseThrow(() -> new NotFoundException("Кампания не найдена"));
 
-        if (!campaign.getGm().getId().equals(gmId)) {
+        // Только GM может создавать записи журнала
+        if (!campaign.getGm().getId().equals(requesterId)) {
             throw new ForbiddenException("Только GM может создавать записи журнала");
         }
 
-        User author = userRepository.findById(gmId)
-                .orElseThrow(() -> new NotFoundException("Автор не найден"));
+        User author = userRepository.findById(requesterId)
+            .orElseThrow(() -> new NotFoundException("Автор не найден"));
 
+        // Валидации обязательных полей
         String type = req.type();
         if (type == null || type.trim().isEmpty()) {
             throw new BadRequestException("Тип записи не должен быть пустым");
+        }
+        if (req.visibility() == null) {
+            throw new BadRequestException("Видимость записи не должна быть пустой");
         }
 
         JournalEntry entry = toEntity(req);
@@ -121,12 +126,12 @@ public class JournalServiceImpl implements JournalService {
 
     @Transactional
     @Override
-    public JournalEntryDto updateJournal(UUID entryId, UUID gmId, JournalEntryUpdateRequest req) {
+    public JournalEntryDto updateJournal(UUID entryId, UUID requesterId, JournalEntryUpdateRequest req) {
         JournalEntry entry = journalEntryRepository.findById(entryId)
-                .orElseThrow(() -> new NotFoundException("Запись не найдена"));
+            .orElseThrow(() -> new NotFoundException("Запись не найдена"));
 
         UUID gmOfCampaign = entry.getCampaign().getGm().getId();
-        if (!gmOfCampaign.equals(gmId)) {
+        if (!gmOfCampaign.equals(requesterId)) {
             throw new ForbiddenException("Только GM может редактировать записи журнала");
         }
 
@@ -145,8 +150,8 @@ public class JournalServiceImpl implements JournalService {
         }
         if (req.content() != null) {
             String c = req.content().trim();
-
-            entry.setContent(c.isEmpty() ? null : c);
+            if (c.isEmpty()) throw new BadRequestException("Контент не должен быть пустым");
+            entry.setContent(c);
         }
         if (req.tags() != null) {
             String tg = req.tags().trim();
@@ -159,20 +164,19 @@ public class JournalServiceImpl implements JournalService {
 
     @Transactional
     @Override
-    public void deleteJournal(UUID entryId, UUID gmId) {
+    public void deleteJournal(UUID entryId, UUID requesterId) {
         JournalEntry entry = journalEntryRepository.findById(entryId)
-                .orElseThrow(() -> new NotFoundException("Запись не найдена"));
+            .orElseThrow(() -> new NotFoundException("Запись не найдена"));
 
         UUID gmOfCampaign = entry.getCampaign().getGm().getId();
-        if (!gmOfCampaign.equals(gmId)) {
+        if (!gmOfCampaign.equals(requesterId)) {
             throw new ForbiddenException("Только GM может удалять записи журнала");
         }
 
         journalEntryRepository.delete(entry);
     }
 
-
-    //----------------------МАППЕРЫ-------------------------//
+    // ---------------------- МАППЕРЫ ---------------------- //
 
     private JournalEntry toEntity(JournalEntryCreateRequest req){
         JournalEntry e = new JournalEntry();
@@ -184,21 +188,20 @@ public class JournalServiceImpl implements JournalService {
         }
         e.setContent(content);
         e.setTags(req.tags() == null ? null : req.tags().trim());
-
         return e;
     }
 
     private JournalEntryDto toDto(JournalEntry journalEntry){
         return JournalEntryDto.builder()
-                .id(journalEntry.getId())
-                .campaignId(journalEntry.getCampaign().getId())
-                .authorId(journalEntry.getAuthor().getId())
-                .type(journalEntry.getType())
-                .visibility(journalEntry.getVisibility())
-                .title(journalEntry.getTitle())
-                .content(journalEntry.getContent())
-                .tags(journalEntry.getTags())
-                .createdAt(journalEntry.getCreatedAt())
-                .build();
+            .id(journalEntry.getId())
+            .campaignId(journalEntry.getCampaign().getId())
+            .authorId(journalEntry.getAuthor().getId())
+            .type(journalEntry.getType())
+            .visibility(journalEntry.getVisibility())
+            .title(journalEntry.getTitle())
+            .content(journalEntry.getContent())
+            .tags(journalEntry.getTags())
+            .createdAt(journalEntry.getCreatedAt())
+            .build();
     }
 }

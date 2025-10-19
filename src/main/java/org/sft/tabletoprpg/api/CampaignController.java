@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.sft.tabletoprpg.security.UserPrincipal;
 import org.sft.tabletoprpg.service.CampaignService;
 import org.sft.tabletoprpg.service.dto.campaign.*;
-import org.sft.tabletoprpg.service.exception.BadRequestException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,7 +27,6 @@ public class CampaignController {
     private final CampaignService campaignService;
 
     // ---------- CREATE ----------
-    // Legacy: POST /api/campaigns/crt
     @PostMapping("/crt")
     public ResponseEntity<CampaignDto> createCampaignLegacy(
         @AuthenticationPrincipal UserPrincipal me,
@@ -38,7 +36,6 @@ public class CampaignController {
         return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 
-    // Canonical: POST /api/campaigns
     @PostMapping
     public ResponseEntity<CampaignDto> createCampaign(
         @AuthenticationPrincipal UserPrincipal me,
@@ -52,46 +49,37 @@ public class CampaignController {
     }
 
     // ---------- READ ----------
-    // Legacy: GET /api/campaigns/campaign-by-id/{id}
     @GetMapping("/campaign-by-id/{id}")
     public ResponseEntity<CampaignDto> getCampaignByIdLegacy(@PathVariable UUID id) {
         return ResponseEntity.ok(campaignService.findCampaignById(id));
     }
 
-    // Canonical: GET /api/campaigns/{id}
     @GetMapping("/{id}")
     public ResponseEntity<CampaignDto> getCampaignById(@PathVariable UUID id) {
         return ResponseEntity.ok(campaignService.findCampaignById(id));
     }
 
-    // Мои кампании как GM
-    // Legacy: GET /api/campaigns/list-by-me
     @GetMapping("/list-by-me")
     public ResponseEntity<List<CampaignDto>> listMineLegacy(@AuthenticationPrincipal UserPrincipal me) {
         return ResponseEntity.ok(campaignService.findMyCampaigns(me.getId()));
     }
 
-    // Canonical: GET /api/campaigns  (возвращает кампании текущего пользователя как GM)
     @GetMapping
     public ResponseEntity<List<CampaignDto>> listMine(@AuthenticationPrincipal UserPrincipal me) {
         return ResponseEntity.ok(campaignService.findMyCampaigns(me.getId()));
     }
 
-    // Кампании указанного GM
-    // Legacy: GET /api/campaigns/list-by-gm?gmId=...
     @GetMapping("/list-by-gm")
     public ResponseEntity<List<CampaignDto>> listByGmLegacy(@RequestParam("gmId") UUID gmId) {
         return ResponseEntity.ok(campaignService.findCampaignsByGm_Id(gmId));
     }
 
-    // Canonical: GET /api/campaigns/by-gm/{gmId}
     @GetMapping("/by-gm/{gmId}")
     public ResponseEntity<List<CampaignDto>> listByGm(@PathVariable UUID gmId) {
         return ResponseEntity.ok(campaignService.findCampaignsByGm_Id(gmId));
     }
 
     // ---------- UPDATE ----------
-    // Canonical: PATCH /api/campaigns/{id}
     @PatchMapping("/{id}")
     public ResponseEntity<CampaignDto> updateCampaign(
         @PathVariable UUID id,
@@ -103,7 +91,6 @@ public class CampaignController {
     }
 
     // ---------- DELETE ----------
-    // Legacy: DELETE /api/campaigns/dlt/{id}
     @DeleteMapping("/dlt/{id}")
     public ResponseEntity<Void> deleteCampaignLegacy(
         @AuthenticationPrincipal UserPrincipal me,
@@ -113,7 +100,6 @@ public class CampaignController {
         return ResponseEntity.noContent().build();
     }
 
-    // Canonical: DELETE /api/campaigns/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCampaign(
         @AuthenticationPrincipal UserPrincipal me,
@@ -123,22 +109,51 @@ public class CampaignController {
         return ResponseEntity.noContent().build();
     }
 
-    // ---------- MEMBERS ----------
-    // Добавить участника
-    @PostMapping("/{campaignId}/members")
-    public ResponseEntity<Void> addMemberToCampaign(
+    // ---------- MEMBERS (idempotent) ----------
+
+    // PUT: создать или обновить участника кампании
+    // Body: { "roleInCampaign": "PLAYER" } (опционально; по умолчанию PLAYER)
+    @PutMapping("/{campaignId}/members/{userId}")
+    public ResponseEntity<CampaignMemberDto> upsertMember(
         @PathVariable UUID campaignId,
+        @PathVariable UUID userId,
         @AuthenticationPrincipal UserPrincipal me,
-        @Valid @RequestBody AddMemberRequest req
+        @RequestBody(required = false) AddMemberRequest req,
+        UriComponentsBuilder uriBuilder
     ) {
-        if (req.campaignId() != null && !req.campaignId().equals(campaignId)) {
-            throw new BadRequestException("campaignId в path и body должны совпадать");
+        CampaignRoleResult result = campaignService.upsertMember(
+            campaignId,
+            userId,
+            (req == null ? null : req.roleInCampaign()),
+            me.getId()
+        );
+
+        if (result.created()) {
+            URI location = uriBuilder
+                .path("/api/campaigns/{campaignId}/members/{userId}")
+                .buildAndExpand(campaignId, userId).toUri();
+            return ResponseEntity.created(location).body(result.dto());
         }
-        campaignService.addMember(campaignId, me.getId(), req);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(result.dto());
     }
 
-    // Список участников
+    // PATCH: изменить только роль участника
+    @PatchMapping("/{campaignId}/members/{userId}")
+    public ResponseEntity<CampaignMemberDto> updateMemberRole(
+        @PathVariable UUID campaignId,
+        @PathVariable UUID userId,
+        @AuthenticationPrincipal UserPrincipal me,
+        @RequestBody AddMemberRequest req
+    ) {
+        CampaignMemberDto dto = campaignService.updateMemberRole(
+            campaignId, userId,
+            req.roleInCampaign(),
+            me.getId()
+        );
+        return ResponseEntity.ok(dto);
+    }
+
+    // GET: список участников
     @GetMapping("/{campaignId}/members")
     public ResponseEntity<List<CampaignMemberDto>> listMembers(
         @PathVariable UUID campaignId,
@@ -147,7 +162,7 @@ public class CampaignController {
         return ResponseEntity.ok(campaignService.listMembers(campaignId, me.getId()));
     }
 
-    // Удалить участника
+    // DELETE: удалить участника
     @DeleteMapping("/{campaignId}/members/{userId}")
     public ResponseEntity<Void> removeMember(
         @PathVariable UUID campaignId,

@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.sft.tabletoprpg.service.CharacterService;
 import org.sft.tabletoprpg.service.dto.character.*;
-import org.sft.tabletoprpg.service.exception.BadRequestException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -19,13 +18,15 @@ import java.util.UUID;
 @Slf4j
 @Validated
 @RestController
-@RequestMapping("/api/characters")
+@RequestMapping("/api/characters") // базовый префикс для legacy и ресурсных операций по персонажу
 @RequiredArgsConstructor
 public class CharacterController {
 
     private final CharacterService characterService;
 
-    // ---- LEGACY создание (сохраняем для обратной совместимости)
+
+    // ====== CREATE ======
+    // LEGACY: POST /api/characters/crt/{campaignId}
     @PostMapping("/crt/{campaignId}")
     public ResponseEntity<CharacterDto> createCharacterLegacy(
         @PathVariable UUID campaignId,
@@ -33,57 +34,55 @@ public class CharacterController {
         @Valid @RequestBody CharacterCreateRequest req,
         UriComponentsBuilder uriBuilder
     ){
-        if (!campaignId.equals(req.campaignId())){
-            throw new BadRequestException("Кампании не соответствуют");
-        }
-        CharacterDto characterDto = characterService.createCharacter(req, requesterId);
+        CharacterDto characterDto = characterService.createCharacter(campaignId, req, requesterId);
         URI location = uriBuilder.path("/api/characters/{id}")
             .buildAndExpand(characterDto.id()).toUri();
         return ResponseEntity.created(location).body(characterDto);
     }
 
-    // ---- Канонический REST: POST /api/campaigns/{campaignId}/characters
-    @PostMapping(path = "/../campaigns/{campaignId}/characters")
+    // CANONICAL: POST /api/campaigns/{campaignId}/characters
+    @PostMapping("/api/campaigns/{campaignId}/characters")
     public ResponseEntity<CharacterDto> createCharacterCanonical(
         @PathVariable UUID campaignId,
         @AuthenticationPrincipal(expression = "id") UUID requesterId,
         @Valid @RequestBody CharacterCreateRequest req,
         UriComponentsBuilder uriBuilder
     ){
-        if (!campaignId.equals(req.campaignId())){
-            throw new BadRequestException("Кампании не соответствуют");
-        }
-        CharacterDto characterDto = characterService.createCharacter(req, requesterId);
+        CharacterDto characterDto = characterService.createCharacter(campaignId, req, requesterId);
         URI location = uriBuilder.path("/api/characters/{id}")
             .buildAndExpand(characterDto.id()).toUri();
         return ResponseEntity.created(location).body(characterDto);
     }
 
-    // ---- Получить по ID
+
+    // ====== READ ======
+    // GET /api/characters/{characterId}
     @GetMapping("/{characterId}")
     public ResponseEntity<CharacterDto> getById(@PathVariable UUID characterId){
         return ResponseEntity.ok(characterService.getById(characterId));
     }
 
-    // ---- Список по кампании (старый URL оставляем)
+    // LEGACY: GET /api/characters/by-campaign-id/{campaignId}
     @GetMapping("/by-campaign-id/{campaignId}")
     public ResponseEntity<List<CharacterDto>> listByCampaignLegacy(@PathVariable UUID campaignId){
         return ResponseEntity.ok(characterService.findCharactersByCampaign_Id(campaignId));
     }
 
-    // ---- Канонический REST alias: GET /api/campaigns/{campaignId}/characters
-    @GetMapping(path = "/../campaigns/{campaignId}/characters")
+    // CANONICAL: GET /api/campaigns/{campaignId}/characters
+    @GetMapping("/api/campaigns/{campaignId}/characters")
     public ResponseEntity<List<CharacterDto>> listByCampaign(@PathVariable UUID campaignId){
         return ResponseEntity.ok(characterService.findCharactersByCampaign_Id(campaignId));
     }
 
-    // ---- Список по владельцу (как было)
+    // LEGACY: GET /api/characters/by-owner-id/{ownerId}
     @GetMapping("/by-owner-id/{ownerId}")
     public ResponseEntity<List<CharacterDto>> listByOwner(@PathVariable UUID ownerId){
         return ResponseEntity.ok(characterService.findCharactersByOwner_Id(ownerId));
     }
 
-    // ---- Обновление полей персонажа (имя/класс/раса/уровень/attributes/maxHp)
+
+    // ====== UPDATE (fields) ======
+    // PATCH /api/characters/{characterId}
     @PatchMapping("/{characterId}")
     public ResponseEntity<CharacterDto> updateCharacter(
         @PathVariable UUID characterId,
@@ -94,7 +93,11 @@ public class CharacterController {
         return ResponseEntity.ok(dto);
     }
 
-    // ---- HP: JSON {set|delta} ИЛИ query ?hp=
+    // ====== UPDATE (HP) ======
+
+    // LEGACY + CANONICAL алиасы:
+    // - PATCH /api/characters/set-hp/{characterId}
+    // - PATCH /api/characters/{characterId}/hp?hp=...
     @PatchMapping({"/set-hp/{characterId}", "/{characterId}/hp"})
     public ResponseEntity<CharacterDto> patchHp(
         @PathVariable UUID characterId,
@@ -106,9 +109,21 @@ public class CharacterController {
         return ResponseEntity.ok(dto);
     }
 
-    // ---- Удаление
+
+    // ====== DELETE ======
+    // CANONICAL: DELETE /api/characters/{characterId}
+    @DeleteMapping("/{characterId}")
+    public ResponseEntity<Void> deleteCharacterCanonical(
+        @PathVariable UUID characterId,
+        @AuthenticationPrincipal(expression = "id") UUID requesterId
+    ){
+        characterService.deleteCharacter(characterId, requesterId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // LEGACY: DELETE /api/characters/dlt/{characterId}
     @DeleteMapping("/dlt/{characterId}")
-    public ResponseEntity<Void> deleteCharacter(
+    public ResponseEntity<Void> deleteCharacterLegacy(
         @PathVariable UUID characterId,
         @AuthenticationPrincipal(expression = "id") UUID requesterId
     ){

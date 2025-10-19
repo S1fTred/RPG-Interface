@@ -44,7 +44,7 @@ public class CampaignServiceImpl implements CampaignService {
         campaign.setGm(gm);
         campaignRepository.save(campaign);
 
-        // Добавим GM как участника (если ещё нет)
+        // гарантируем членство GM
         if (!campaignMemberRepository.existsByCampaign_IdAndUser_Id(campaign.getId(), gm.getId())) {
             CampaignMember cm = CampaignMember.builder()
                 .id(new CampaignMemberId(campaign.getId(), gm.getId()))
@@ -94,39 +94,112 @@ public class CampaignServiceImpl implements CampaignService {
         campaignRepository.delete(campaign);
     }
 
+
+    // ===== Members (idempotent) =====
     @Transactional
     @Override
-    public void addMember(UUID campaignId, UUID requesterId, AddMemberRequest req) {
+    public CampaignRoleResult upsertMember(UUID campaignId, UUID userId, CampaignRole role, UUID requesterId) {
         Campaign campaign = campaignRepository.findById(campaignId)
             .orElseThrow(() -> new NotFoundException("Кампания не найдена"));
 
         if (!campaign.getGm().getId().equals(requesterId)) {
-            throw new ForbiddenException("Только GM может добавлять участников");
+            throw new ForbiddenException("Только GM может добавлять/обновлять участников");
         }
 
-        User user = userRepository.findById(req.userId())
+        User user = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException("Пользователь не найден"));
 
-        // 🚫 был баг: проверяли campaignRepository.existsByIdAndGm_Id(...)
-        // ✅ правильная проверка членства:
-        if (campaignMemberRepository.existsByCampaign_IdAndUser_Id(campaignId, user.getId())) {
-            throw new ConflictException("Пользователь уже есть в кампании");
+        CampaignMemberId id = new CampaignMemberId(campaignId, userId);
+        CampaignMember existing = campaignMemberRepository.findById(id).orElse(null);
+
+        CampaignRole targetRole = (role == null ? CampaignRole.PLAYER : role);
+
+        // Запрет на «второго GM»
+        if (targetRole == CampaignRole.GM && !userId.equals(campaign.getGm().getId())) {
+            throw new ForbiddenException("Нельзя назначить второго GM. Передайте GM-ство отдельным сценарием.");
         }
 
-        // Нельзя назначить второго GM
-        if (req.roleInCampaign() == CampaignRole.GM && !user.getId().equals(campaign.getGm().getId())) {
-            throw new ForbiddenException("Нельзя назначить второго GM. Передайте GM-ство явно.");
+        if (existing == null) {
+            CampaignMember cm = CampaignMember.builder()
+                .id(id)
+                .campaign(campaign)
+                .user(user)
+                .roleInCampaign(targetRole)
+                .build();
+            campaignMemberRepository.save(cm);
+
+            return new CampaignRoleResult(toMemberDto(cm), true); // created = true
+        } else {
+            // если идемпотентный PUT без изменения роли — просто вернуть 200 OK
+            if (existing.getRoleInCampaign() != targetRole) {
+                existing.setRoleInCampaign(targetRole);
+                campaignMemberRepository.save(existing);
+            }
+            return new CampaignRoleResult(toMemberDto(existing), false); // created = false
         }
-
-        CampaignMember campaignMember = CampaignMember.builder()
-            .id(new CampaignMemberId(campaignId, user.getId()))
-            .campaign(campaign)
-            .user(user)
-            .roleInCampaign(req.roleInCampaign())
-            .build();
-
-        campaignMemberRepository.save(campaignMember);
     }
+
+    @Transactional
+    @Override
+    public CampaignMemberDto updateMemberRole(UUID campaignId, UUID userId, CampaignRole role, UUID requesterId) {
+        if (role == null) {
+            throw new IllegalArgumentException("roleInCampaign не должен быть пустым");
+        }
+        Campaign campaign = campaignRepository.findById(campaignId)
+            .orElseThrow(() -> new NotFoundException("Кампания не найдена"));
+
+        if (!campaign.getGm().getId().equals(requesterId)) {
+            throw new ForbiddenException("Только GM может менять роль участника");
+        }
+
+        CampaignMemberId id = new CampaignMemberId(campaignId, userId);
+        CampaignMember member = campaignMemberRepository.findById(id)
+            .orElseThrow(() -> new NotFoundException("Пользователь не является участником кампании"));
+
+        if (role == CampaignRole.GM && !userId.equals(campaign.getGm().getId())) {
+            throw new ForbiddenException("Нельзя назначить второго GM. Передайте GM-ство отдельным сценарием.");
+        }
+
+        member.setRoleInCampaign(role);
+        campaignMemberRepository.save(member);
+        return toMemberDto(member);
+    }
+
+    @Override
+    public List<CampaignMemberDto> listMembers(UUID campaignId, UUID requesterId) {
+        Campaign campaign = campaignRepository.findById(campaignId)
+            .orElseThrow(() -> new NotFoundException("Кампания не найдена"));
+
+        if (!campaign.getGm().getId().equals(requesterId)) {
+            throw new ForbiddenException("Только GM может просматривать список участников");
+        }
+
+        return campaignMemberRepository.findByCampaign_Id(campaignId).stream()
+            .map(this::toMemberDto)
+            .toList();
+    }
+
+    @Transactional
+    @Override
+    public void removeMember(UUID campaignId, UUID userId, UUID requesterId) {
+        Campaign campaign = campaignRepository.findById(campaignId)
+            .orElseThrow(() -> new NotFoundException("Кампания не найдена"));
+
+        if (!campaign.getGm().getId().equals(requesterId)) {
+            throw new ForbiddenException("Только GM может удалять участников");
+        }
+        if (userId.equals(campaign.getGm().getId())) {
+            throw new ForbiddenException("Нельзя удалить GM из собственной кампании");
+        }
+
+        CampaignMemberId id = new CampaignMemberId(campaignId, userId);
+        CampaignMember member = campaignMemberRepository.findById(id)
+            .orElseThrow(() -> new NotFoundException("Пользователь не является участником кампании"));
+
+        campaignMemberRepository.delete(member);
+    }
+
+    // ===== Reads =====
 
     @Override
     public List<CampaignDto> findMyCampaigns(UUID gmId) {
@@ -147,48 +220,6 @@ public class CampaignServiceImpl implements CampaignService {
         return toDto(campaign);
     }
 
-    @Override
-    public List<CampaignMemberDto> listMembers(UUID campaignId, UUID requesterId) {
-        Campaign campaign = campaignRepository.findById(campaignId)
-            .orElseThrow(() -> new NotFoundException("Кампания не найдена"));
-
-        // Доступ: GM кампании (при желании можно разрешить и участникам)
-        if (!campaign.getGm().getId().equals(requesterId)) {
-            throw new ForbiddenException("Только GM может просматривать список участников");
-        }
-
-        return campaignMemberRepository.findByCampaign_Id(campaignId).stream()
-            .map(cm -> new CampaignMemberDto(
-                cm.getUser().getId(),
-                cm.getUser().getUsername(),
-                cm.getUser().getEmail(),
-                cm.getRoleInCampaign().name()
-            ))
-            .toList();
-    }
-
-    @Transactional
-    @Override
-    public void removeMember(UUID campaignId, UUID userId, UUID requesterId) {
-        Campaign campaign = campaignRepository.findById(campaignId)
-            .orElseThrow(() -> new NotFoundException("Кампания не найдена"));
-
-        if (!campaign.getGm().getId().equals(requesterId)) {
-            throw new ForbiddenException("Только GM может удалять участников");
-        }
-        // Нельзя удалить самого GM
-        if (userId.equals(campaign.getGm().getId())) {
-            throw new ForbiddenException("Нельзя удалить GM из собственной кампании");
-        }
-
-        CampaignMemberId id = new CampaignMemberId(campaignId, userId);
-        boolean exists = campaignMemberRepository.existsById(id);
-        if (!exists) {
-            throw new NotFoundException("Пользователь не является участником кампании");
-        }
-        campaignMemberRepository.deleteById(id);
-    }
-
     // --------------------------- МАППЕРЫ ------------------------------------- //
     private Campaign toEntity(CampaignCreateRequest req) {
         return Campaign.builder()
@@ -206,5 +237,14 @@ public class CampaignServiceImpl implements CampaignService {
             .createdAt(campaign.getCreatedAt())
             .updatedAt(campaign.getUpdatedAt())
             .build();
+    }
+
+    private CampaignMemberDto toMemberDto(CampaignMember cm) {
+        return new CampaignMemberDto(
+            cm.getUser().getId(),
+            cm.getUser().getUsername(),
+            cm.getUser().getEmail(),
+            cm.getRoleInCampaign().name()
+        );
     }
 }

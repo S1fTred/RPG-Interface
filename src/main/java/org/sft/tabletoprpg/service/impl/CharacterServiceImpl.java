@@ -30,9 +30,10 @@ public class CharacterServiceImpl implements CharacterService {
     private final UserRepository userRepository;
     private final CampaignMemberRepository campaignMemberRepository;
 
+
     @Transactional
     @Override
-    public CharacterDto createCharacter(CharacterCreateRequest req, UUID requesterId) {
+    public CharacterDto createCharacter(UUID campaignId, CharacterCreateRequest req, UUID requesterId) {
         // ---- Нормализация строк
         final String name  = req.name()  == null ? null : req.name().trim();
         final String clazz = req.clazz() == null ? null : req.clazz().trim();
@@ -45,7 +46,6 @@ public class CharacterServiceImpl implements CharacterService {
         if (race == null || race.isEmpty())
             throw new BadRequestException("Раса не должна быть пустой");
 
-
         if (req.level() < 1) {
             throw new BadRequestException("Уровень должен быть ≥ 1");
         }
@@ -56,11 +56,11 @@ public class CharacterServiceImpl implements CharacterService {
             throw new BadRequestException("HP должен быть в диапазоне [0, maxHp]");
         }
 
-        // ---- Кампания
-        Campaign campaign = campaignRepository.findById(req.campaignId())
+
+        Campaign campaign = campaignRepository.findById(campaignId)
             .orElseThrow(() -> new NotFoundException("Кампания не найдена"));
 
-        // ---- Владелец = автор запроса
+
         User owner = userRepository.findById(requesterId)
             .orElseThrow(() -> new NotFoundException("Пользователь (владелец) не найден"));
 
@@ -71,16 +71,16 @@ public class CharacterServiceImpl implements CharacterService {
             throw new ForbiddenException("Нет прав на создание персонажа в этой кампании");
         }
 
-        // ---- Владелец должен быть участником кампании
+
         boolean ownerIsMember = campaignMemberRepository
-            .existsByCampaign_IdAndUser_Id(req.campaignId(), owner.getId());
+            .existsByCampaign_IdAndUser_Id(campaignId, owner.getId());
         if (!ownerIsMember) {
             throw new ForbiddenException("Владелец персонажа должен быть участником кампании");
         }
 
-        // ---- Уникальность имени в кампании (без учета регистра)
+
         boolean nameTaken = characterRepository
-            .existsByCampaign_IdAndNameIgnoreCase(req.campaignId(), name);
+            .existsByCampaign_IdAndNameIgnoreCase(campaignId, name);
         if (nameTaken) {
             throw new BadRequestException("В этой кампании уже есть персонаж с таким именем");
         }
@@ -239,7 +239,6 @@ public class CharacterServiceImpl implements CharacterService {
         return toDto(character);
     }
 
-
     // ------------------------ МАППЕРЫ ------------------------------ //
     private Character toEntity(CharacterCreateRequest req) {
         return Character.builder()
@@ -265,7 +264,6 @@ public class CharacterServiceImpl implements CharacterService {
             .atributes(character.getAtributes())
             .build();
     }
-
 
     private Atributes mapAttributes(AttributesDto dto) {
         if (dto == null) return null;

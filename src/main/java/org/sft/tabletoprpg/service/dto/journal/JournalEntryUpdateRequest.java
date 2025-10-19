@@ -6,9 +6,9 @@ import jakarta.validation.constraints.Size;
 import org.sft.tabletoprpg.domain.JournalVisibility;
 
 public record JournalEntryUpdateRequest(
-        @NotBlank @Size(max = 50) String type,
-        @NotNull JournalVisibility visibility,
-        @NotBlank @Size(min=1, max=150) String title,
-        @NotBlank String content,
+        @Size(max = 50) String type,
+        JournalVisibility visibility,
+        @Size(min=1, max=150) String title,
+        String content,
         String tags
 ) {}

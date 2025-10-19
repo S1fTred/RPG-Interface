@@ -14,7 +14,7 @@ spring:
 
   sql:
     init:
-      # На 1-м запуске: always  (создаст таблицы из schema.sql)
+      # На 1-м запуске: always(создаст таблицы из schema.sql)
       # После успешного старта можно переключить на: never
       mode: never
       schema-locations: classpath:schema.sql

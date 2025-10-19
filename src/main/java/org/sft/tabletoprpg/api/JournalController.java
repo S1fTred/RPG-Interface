@@ -7,7 +7,6 @@ import org.sft.tabletoprpg.service.JournalService;
 import org.sft.tabletoprpg.service.dto.journal.JournalEntryCreateRequest;
 import org.sft.tabletoprpg.service.dto.journal.JournalEntryDto;
 import org.sft.tabletoprpg.service.dto.journal.JournalEntryUpdateRequest;
-import org.sft.tabletoprpg.service.exception.BadRequestException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -28,71 +27,70 @@ public class JournalController {
     private final JournalService journalService;
 
     // ---------- CREATE ----------
+
     // Legacy: POST /api/journals/create/{campaignId}
+    // ВНИМАНИЕ: authorId/campaignId в body игнорируются (если вдруг придут от старых клиентов)
     @PostMapping("/journals/create/{campaignId}")
     public ResponseEntity<JournalEntryDto> createJournalLegacy(
         @PathVariable UUID campaignId,
-        @AuthenticationPrincipal(expression = "id") UUID gmId,
+        @AuthenticationPrincipal(expression = "id") UUID requesterId,
         @Valid @RequestBody JournalEntryCreateRequest req,
         UriComponentsBuilder uriBuilder
     ){
-        if (req.campaignId() != null && !campaignId.equals(req.campaignId())) {
-            throw new BadRequestException("campaignId в path и body должны совпадать");
-        }
-        JournalEntryDto dto = journalService.createJournal(campaignId, gmId, req);
+        JournalEntryDto dto = journalService.createJournal(campaignId, requesterId, req);
         URI location = uriBuilder.path("/api/campaigns/{cid}/journal/{id}")
             .buildAndExpand(dto.campaignId(), dto.id()).toUri();
         return ResponseEntity.created(location).body(dto);
     }
 
     // Canonical: POST /api/campaigns/{campaignId}/journal
+    // Только GM кампании может создавать записи
     @PostMapping("/campaigns/{campaignId}/journal")
     public ResponseEntity<JournalEntryDto> createJournal(
         @PathVariable UUID campaignId,
-        @AuthenticationPrincipal(expression = "id") UUID gmId,
+        @AuthenticationPrincipal(expression = "id") UUID requesterId,
         @Valid @RequestBody JournalEntryCreateRequest req,
         UriComponentsBuilder uriBuilder
     ){
-        if (req.campaignId() != null && !campaignId.equals(req.campaignId())) {
-            throw new BadRequestException("campaignId в path и body должны совпадать");
-        }
-        JournalEntryDto dto = journalService.createJournal(campaignId, gmId, req);
+        JournalEntryDto dto = journalService.createJournal(campaignId, requesterId, req);
         URI location = uriBuilder.path("/api/campaigns/{cid}/journal/{id}")
             .buildAndExpand(dto.campaignId(), dto.id()).toUri();
         return ResponseEntity.created(location).body(dto);
     }
 
     // ---------- UPDATE ----------
+
     // Legacy: PATCH /api/journals/update/{entryId}
     @PatchMapping("/journals/update/{entryId}")
     public ResponseEntity<JournalEntryDto> updateJournalLegacy(
         @PathVariable UUID entryId,
-        @AuthenticationPrincipal(expression = "id") UUID gmId,
+        @AuthenticationPrincipal(expression = "id") UUID requesterId,
         @Valid @RequestBody JournalEntryUpdateRequest req
     ){
-        return ResponseEntity.ok(journalService.updateJournal(entryId, gmId, req));
+        return ResponseEntity.ok(journalService.updateJournal(entryId, requesterId, req));
     }
 
     // Canonical: PATCH /api/campaigns/{campaignId}/journal/{entryId}
+    // campaignId используется для читаемого URL; сама запись привязана к своей кампании
     @PatchMapping("/campaigns/{campaignId}/journal/{entryId}")
     public ResponseEntity<JournalEntryDto> updateJournal(
         @PathVariable UUID campaignId,
         @PathVariable UUID entryId,
-        @AuthenticationPrincipal(expression = "id") UUID gmId,
+        @AuthenticationPrincipal(expression = "id") UUID requesterId,
         @Valid @RequestBody JournalEntryUpdateRequest req
     ){
-        // кампания берётся из записи; campaignId используется для читаемого URL
-        return ResponseEntity.ok(journalService.updateJournal(entryId, gmId, req));
+        return ResponseEntity.ok(journalService.updateJournal(entryId, requesterId, req));
     }
 
     // ---------- DELETE ----------
+
     // Legacy: DELETE /api/journals/delete/{entryId}
     @DeleteMapping("/journals/delete/{entryId}")
     public ResponseEntity<Void> deleteJournalLegacy(
         @PathVariable UUID entryId,
-        @AuthenticationPrincipal(expression = "id") UUID gmId
+        @AuthenticationPrincipal(expression = "id") UUID requesterId
     ){
-        journalService.deleteJournal(entryId, gmId);
+        journalService.deleteJournal(entryId, requesterId);
         return ResponseEntity.noContent().build();
     }
 
@@ -101,13 +99,14 @@ public class JournalController {
     public ResponseEntity<Void> deleteJournal(
         @PathVariable UUID campaignId,
         @PathVariable UUID entryId,
-        @AuthenticationPrincipal(expression = "id") UUID gmId
+        @AuthenticationPrincipal(expression = "id") UUID requesterId
     ){
-        journalService.deleteJournal(entryId, gmId);
+        journalService.deleteJournal(entryId, requesterId);
         return ResponseEntity.noContent().build();
     }
 
     // ---------- READ ----------
+
     // Legacy: GET /api/journals/list-journals/{campaignId}
     @GetMapping("/journals/list-journals/{campaignId}")
     public ResponseEntity<List<JournalEntryDto>> listJournalLegacy(

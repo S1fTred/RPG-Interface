@@ -7,7 +7,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
 
 public record ItemUpdateRequest(
-    @NotBlank String name,
+    String name,
     String description,
     @PositiveOrZero @Digits(integer=6, fraction=2) BigDecimal weight,
     @PositiveOrZero Integer price

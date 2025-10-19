@@ -10,11 +10,13 @@ import java.util.UUID;
 
 public interface CharacterService {
 
-    CharacterDto createCharacter(CharacterCreateRequest req, UUID requesterId);
+    CharacterDto createCharacter(UUID campaignId, CharacterCreateRequest req, UUID requesterId);
 
     CharacterDto updateCharacter(UUID characterId, CharacterUpdateRequest req, UUID requesterId);
 
     void deleteCharacter(UUID characterId,  UUID requesterId);
+
+    CharacterDto getById(UUID characterId);
 
     List<CharacterDto> findCharactersByCampaign_Id(UUID campaignId);
 
@@ -25,6 +27,5 @@ public interface CharacterService {
                          HpPatchRequest body,
                          UUID requesterId);
 
-    CharacterDto getById(UUID characterId);
 
 }
