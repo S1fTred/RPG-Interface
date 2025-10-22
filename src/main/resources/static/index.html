@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tabletop RPG Interface — SPA</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="shell">
+    <header class="topbar">
+        <div class="brand">
+            <div class="logo"></div>
+            <h1>Tabletop RPG Interface</h1>
+        </div>
+        <div class="topbar-actions">
+            <span id="roleChip" class="chip">Гость</span>
+            <button id="logoutBtn" class="btn small ghost hidden">Выйти</button>
+        </div>
+    </header>
+
+
+    <main>
+        <div id="view"></div>
+        <footer>
+            <small class="muted">Vanilla JS • REST-first • JWT</small>
+        </footer>
+    </main>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

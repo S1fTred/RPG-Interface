@@ -14,7 +14,7 @@ spring:
 
   sql:
     init:
-      # На 1-м запуске: always(создаст таблицы из schema.sql)
+      # первый запуск: always(создаст таблицы из schema.sql)
       # После успешного старта можно переключить на: never
       mode: never
       schema-locations: classpath:schema.sql
@@ -34,9 +34,7 @@ spring:
     console:
       enabled: true
       path: /h2-console
-  # при необходимости открыть из других хостов:
-  # settings:
-  #   web-allow-others: true
+
 
   flyway:
     enabled: false

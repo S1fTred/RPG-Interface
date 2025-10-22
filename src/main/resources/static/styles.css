@@ -1,0 +1,74 @@
+:root {
+    --bg: #0b0e14;
+    --panel: #11151f;
+    --soft: #151a26;
+    --text: #e6edf3;
+    --muted: #a3b1c6;
+    --brand: #7c9cff;
+    --brand-2: #59d3a0;
+    --danger: #ff6b6b;
+    --warning: #ffd166;
+    --ok: #3ad29f;
+    --border: #1e2533;
+    --shadow: 0 10px 30px rgba(0,0,0,.25);
+    --radius-xl: 18px;
+    --radius-lg: 12px;
+    --radius: 10px;
+    --gap: 14px;
+    --gap-sm: 8px;
+    --gap-lg: 22px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+    margin: 0;
+    font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial;
+    color: var(--text);
+    background: radial-gradient(1200px 700px at 80% -10%, #19203a 0%, transparent 60%),
+    radial-gradient(1000px 600px at -20% 10%, #16222e 0%, transparent 60%),
+    var(--bg);
+}
+a { color: var(--brand); text-decoration: none; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.shell { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
+header.topbar {
+    display: flex; gap: var(--gap); align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0));
+    backdrop-filter: blur(6px);
+    position: sticky; top: 0; z-index: 10;
+}
+.brand { display:flex; align-items:center; gap:10px; }
+.brand .logo { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(135deg, var(--brand), var(--brand-2)); box-shadow: var(--shadow); }
+.brand h1 { font-size: 16px; margin: 0; letter-spacing: .4px; font-weight: 700; }
+.topbar-actions { display:flex; gap:10px; align-items:center; }
+.chip { padding: 6px 10px; border:1px solid var(--border); border-radius: 999px; background: #0f1420; color: var(--muted); }
+main { padding: 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
+.panel { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow); padding: 18px; }
+.grid { display: grid; gap: var(--gap); }
+.grid.cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.grid.cols-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+@media (max-width: 900px) { .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; } }
+.form { display: grid; gap: 12px; }
+.field { display:grid; gap:6px; }
+label { color: var(--muted); font-size: 12px; }
+input[type="text"], input[type="password"], textarea, select {
+    background: #0e1422; border: 1px solid var(--border); color: var(--text);
+    border-radius: var(--radius); padding: 10px 12px; outline: none;
+}
+textarea { min-height: 80px; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); background: linear-gradient(180deg, #1a2030, #11182a); color: var(--text); cursor: pointer; }
+.btn.primary { background: linear-gradient(180deg, var(--brand), #5264ff); border-color: #2b3bd1; color:#0b0f19; font-weight: 700; }
+.btn.danger { background: linear-gradient(180deg, #ff8484, #ff5a5a); color:#1a0b0b; border-color: #a33; font-weight:700; }
+.toolbar { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px dashed var(--border); }
+th { color: var(--muted); font-weight: 600; }
+.tag { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+.alert { padding: 12px 14px; border-radius: var(--radius-lg); border: 1px solid var(--border); background: #0f1728; }
+.alert.ok { border-color: rgba(58,210,159,.4); }
+.alert.err { border-color: rgba(255,107,107,.4); }
+.card { background: #0f1523; border:1px solid var(--border); border-radius: var(--radius-xl); padding: 14px; box-shadow: var(--shadow); }
+.card h4 { margin: 0 0 6px 0; }
+footer { text-align:center; color: var(--muted); padding: 30px 0 60px; }
+.hidden { display:none !important; }
