@@ -21,7 +21,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -46,24 +45,28 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // ✅ статика и корень
+                // ✅ отдать всю статику (classpath:/static, /public, /resources, /META-INF/resources)
+                .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
+
+                // ✅ явные статические и корневые маршруты (если нужно)
                 .requestMatchers(HttpMethod.GET,
                     "/", "/index.html", "/favicon.ico",
-                    "/styles.css", "/app.js",
-                    "/assets/**", "/**/*.css", "/**/*.js",
-                    "/**/*.png", "/**/*.jpg", "/**/*.svg", "/**/*.woff", "/**/*.woff2"
+                    "/manifest.webmanifest",
+                    "/styles.css",
+                    "/js/**",        // <— наши модули лежат тут
+                    "/assets/**"     // картинки/шрифты, если используешь
                 ).permitAll()
 
-                // ✅ публичные auth-эндпоинты
+                // ✅ публичные auth-эндпоинты + /error + H2
                 .requestMatchers("/auth/**", "/error", "/h2-console/**").permitAll()
 
-                // 🔒 роли
+                // 🔒 роль ADMIN для каталога предметов
                 .requestMatchers("/api/items/**").hasRole("ADMIN")
 
-                // 🔒 остальной API — аутентифицированным
+                // 🔒 остальной API — только аутентифицированным
                 .requestMatchers("/api/**").authenticated()
 
-                // Остальное можно открыть
+                // прочее — открыто
                 .anyRequest().permitAll()
             )
             .exceptionHandling(ex -> ex
@@ -82,21 +85,23 @@ public class SecurityConfig {
                         """);
                 })
             )
-            // H2-консоль (если используется)
+            // H2-консоль (если используешь)
             .headers(h -> h.frameOptions(f -> f.disable()))
-            // JWT фильтр ДО стандартного
+            // JWT фильтр ДО стандартного UsernamePasswordAuthenticationFilter
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // (опционально) CORS — для same-origin можно опустить
+    // CORS (на случай, если фронт будет отдельно)
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         var cfg = new CorsConfiguration();
         cfg.setAllowedOrigins(List.of(
-            "http://localhost:8080", // same-origin
-            "http://localhost:3000", "http://127.0.0.1:3000"
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000"
         ));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("Authorization","Content-Type","Accept"));
