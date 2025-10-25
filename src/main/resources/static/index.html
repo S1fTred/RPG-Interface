@@ -1,14 +1,21 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Tabletop RPG</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preload" href="/css/style.css" as="style" />
+    <link rel="stylesheet" href="/css/style.css" />
+</head>
+
+<body>
 <header class="topbar">
-    <div class="brand">💀 Tabletop RPG</div>
-    <nav>
-        <button class="btn" data-route="view-login">Войти</button>
-        <button class="btn" data-route="view-register">Регистрация</button>
-    </nav>
+    <div class="brand">🎲 Tabletop RPG</div>
+    <!-- Кнопок «Войти/Регистрация» больше нет: формы ниже -->
 </header>
 
 <main class="container">
-
-    <!-- Welcome -->
+    <!-- Welcome (гость) -->
     <section id="view-welcome" class="view">
         <div class="card">
             <h2>Добро пожаловать!</h2>
@@ -20,7 +27,21 @@
     <section id="view-home" class="view hidden">
         <div class="card">
             <h2>Вы вошли</h2>
-            <p>Здесь появятся разделы: Персонажи / Кампании / Журналы / (Items для ADMIN).</p>
+            <p>Ниже — ваши данные: кампании (как GM) и персонажи.</p>
+        </div>
+
+        <div id="home-campaigns" class="card">
+            <h3>Мои кампании</h3>
+            <div id="home-campaigns-list" class="list">Загрузка...</div>
+        </div>
+
+        <div id="home-characters" class="card">
+            <h3>Мои персонажи</h3>
+            <div id="home-characters-list" class="list">Загрузка...</div>
+        </div>
+
+        <div class="row" id="logoutRow" style="margin-top:16px">
+            <button id="logoutBtn" class="btn ghost">↪︎ Выйти</button>
         </div>
     </section>
 
@@ -28,11 +49,11 @@
     <section id="view-login" class="view hidden">
         <form id="loginForm" class="card" autocomplete="on">
             <h2>Вход</h2>
+            <div id="loginError" class="form-error hidden"></div>
             <input id="loginUsername" placeholder="username" />
             <input id="loginPassword" placeholder="password" type="password" />
             <div class="row">
                 <button id="loginSubmit" type="button" class="btn primary">Войти</button>
-                <!-- лишнюю кнопку «Регистрация» тут убираем -->
             </div>
         </form>
     </section>
@@ -41,19 +62,24 @@
     <section id="view-register" class="view hidden">
         <form id="registerForm" class="card" autocomplete="off">
             <h2>Регистрация</h2>
+            <div id="registerError" class="form-error hidden"></div>
             <input id="regUsername" placeholder="username" />
             <input id="regEmail" placeholder="email" type="email" />
             <input id="regPassword" placeholder="password" type="password" />
             <div class="row">
-                <button id="registerSubmit" type="button" class="btn primary">Зарегистрироваться</button>
-                <button id="goLoginFromRegister" type="button" class="btn ghost">У меня уже есть аккаунт</button>
+                <button id="registerSubmit" type="button" class="btn primary">
+                    Зарегистрироваться
+                </button>
+                <button id="goLoginFromRegister" type="button" class="btn ghost">
+                    У меня уже есть аккаунт
+                </button>
             </div>
         </form>
     </section>
-
 </main>
 
 <footer class="footer">© Tabletop RPG Interface</footer>
 
-<!-- В самом конце body -->
 <script type="module" src="/js/app.js"></script>
+</body>
+</html>

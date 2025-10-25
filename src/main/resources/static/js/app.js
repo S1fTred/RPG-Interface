@@ -1,104 +1,165 @@
-// app.js — основной модуль фронтенда Tabletop RPG Interface
+// js/app.js — простой SPA без фреймворков: секции/формы/данные
 
-import { route, setNotFound, dispatch, navigate } from './router.js';
-import { boot, me, signout } from './auth.js';
-import { renderLogin } from './views/login.js';
-import { renderRegister } from './views/register.js';
-import { renderDashboard } from './views/dashboard.js';
-import { renderCharacters } from './views/characters.js';
-import { renderCharacterDetail } from './views/characterDetail.js';
-import { renderJournals } from './views/journals.js';
-import { renderCampaigns } from './views/campaigns.js';
-import { renderCampaignDetail } from './views/campaignDetail.js';
-import { renderItems } from './views/items.js';
+import { boot, me, login, register, signout } from './auth.js';
+import { api, readError } from './api.js';
 
-const app = document.getElementById('app');
-const nav = document.getElementById('top-nav');
-
-// Экспортируем navigate — чтобы виды могли вызывать переход
-export { navigate };
-
-// ---------- Навигация и Layout ----------
-function link(path, text) {
-    const a = document.createElement('button');
-    a.className = 'nav-btn';
-    a.textContent = text;
-    a.addEventListener('click', () => navigate(path));
-
-    // Подсветка активного пункта
-    if (location.hash.slice(1).split('?')[0] === path) {
-        a.setAttribute('aria-current', 'page');
-    }
-    return a;
+// ===== утилиты показа/скрытия =====
+const $ = (sel) => document.querySelector(sel);
+function show(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+    $(id).classList.remove('hidden');
 }
 
-function layout() {
-    if (!nav) return;
-    nav.innerHTML = '';
+// ===== рендер списков =====
+function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+}
 
-    const u = me();
-    if (!u) {
-        nav.append(link('/login', 'Войти'), link('/register', 'Регистрация'));
+function renderCampaigns(listEl, items) {
+    listEl.innerHTML = '';
+    if (!items?.length) {
+        listEl.textContent = 'Пока нет кампаний.';
         return;
     }
+    items.forEach(c => {
+        const row = el('div', 'row-item');
+        row.append(
+            el('div','title', c.name),
+            el('div','muted', `ID: ${c.id}`)
+        );
+        listEl.append(row);
+    });
+}
 
-    nav.append(
-        link('/', 'Главная'),
-        link('/characters', 'Персонажи'),
-        link('/journals', 'Журналы'),
-        link('/campaigns', 'Кампании')
-    );
+function renderCharacters(listEl, items) {
+    listEl.innerHTML = '';
+    if (!items?.length) {
+        listEl.textContent = 'Пока нет персонажей.';
+        return;
+    }
+    items.forEach(ch => {
+        const row = el('div', 'row-item');
+        row.append(
+            el('div','title', `${ch.name} · ${ch.clazz} · ${ch.race}`),
+            el('div','muted', `HP: ${ch.hp}/${ch.maxHp}`)
+        );
+        listEl.append(row);
+    });
+}
 
-    if (u.roles?.includes('ADMIN')) {
-        nav.append(link('/items', 'Предметы'));
+// ===== загрузка домашней =====
+async function loadHome() {
+    const listC = $('#home-campaigns-list');
+    const listH = $('#home-characters-list');
+    listC.textContent = 'Загрузка...';
+    listH.textContent = 'Загрузка...';
+
+    try {
+        // Мои кампании (как GM): бек возвращает по текущему пользователю
+        const cRes = await api.get('/api/campaigns');
+        if (!cRes.ok) throw new Error(await readError(cRes));
+        const campaigns = await cRes.json();
+        renderCampaigns(listC, campaigns);
+    } catch (e) {
+        listC.textContent = 'Ошибка: ' + (e.message || 'не удалось получить кампании');
     }
 
-    // Кнопка выхода
-    const meBtn = document.createElement('button');
-    meBtn.className = 'nav-btn';
-    meBtn.textContent = `↪︎ Выйти (${u.username})`;
-    meBtn.addEventListener('click', () => {
-        signout();
-        layout();
-        navigate('/login');
-    });
-
-    nav.append(meBtn);
+    try {
+        // Мои персонажи — в бекенде есть legacy-эндпоинт by-owner-id
+        const u = me();
+        const hRes = await api.get(`/api/characters/by-owner-id/${u.id}`);
+        if (!hRes.ok) throw new Error(await readError(hRes));
+        const chars = await hRes.json();
+        renderCharacters(listH, chars);
+    } catch (e) {
+        listH.textContent = 'Ошибка: ' + (e.message || 'не удалось получить персонажей');
+    }
 }
 
-// ---------- Монтирование в DOM ----------
-export function mount(view) {
-    app.innerHTML = '';
-    app.appendChild(view);
-    layout();
+// ===== инициализация обработчиков форм =====
+function initForms() {
+    // Вход
+    const loginBtn = $('#loginSubmit');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', async () => {
+            const errBox = $('#loginError'); errBox.classList.add('hidden'); errBox.textContent = '';
+            const u = $('#loginUsername').value.trim();
+            const p = $('#loginPassword').value;
+            loginBtn.disabled = true;
+            try {
+                await login(u, p);
+                show('#view-home');
+                await loadHome();
+            } catch (e) {
+                errBox.textContent = e.message || 'Ошибка входа';
+                errBox.classList.remove('hidden');
+            } finally {
+                loginBtn.disabled = false;
+            }
+        });
+    }
+
+    // Регистрация
+    const regBtn = $('#registerSubmit');
+    const goLogin = $('#goLoginFromRegister');
+    if (regBtn) {
+        regBtn.addEventListener('click', async () => {
+            const errBox = $('#registerError'); errBox.classList.add('hidden'); errBox.textContent = '';
+            const u = $('#regUsername').value.trim();
+            const em = $('#regEmail').value.trim();
+            const p = $('#regPassword').value;
+            regBtn.disabled = true;
+            try {
+                await register(u, em, p);
+                show('#view-home');
+                await loadHome();
+            } catch (e) {
+                errBox.textContent = e.message || 'Ошибка регистрации';
+                errBox.classList.remove('hidden');
+            } finally {
+                regBtn.disabled = false;
+            }
+        });
+    }
+    if (goLogin) {
+        goLogin.addEventListener('click', () => {
+            show('#view-login');
+        });
+    }
+
+    // Выход
+    const logoutBtn = $('#logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            signout();
+            $('#home-campaigns-list').textContent = 'Загрузка...';
+            $('#home-characters-list').textContent = 'Загрузка...';
+            show('#view-login');
+        });
+    }
 }
 
-// ---------- Маршруты ----------
-route('/', () => renderDashboard());
-route('/login', () => renderLogin());
-route('/register', () => renderRegister());
-route('/characters', () => renderCharacters());
-route('/character', ({ params }) => renderCharacterDetail(params.id));
-route('/journals', () => renderJournals());
-route('/campaigns', () => renderCampaigns());
-route('/campaign', ({ params }) => renderCampaignDetail(params.id));
-route('/items', () => renderItems());
+// ===== реакция на события auth =====
+window.addEventListener('auth:login', async () => {
+    show('#view-home');
+    await loadHome();
+});
+window.addEventListener('auth:logout', () => {
+    show('#view-login');
+});
 
-setNotFound(() => mount(document.createTextNode('Страница не найдена')));
+// ===== старт =====
+await boot();
 
-// ---------- Инициализация ----------
-window.addEventListener('hashchange', layout); // обновлять меню при переходах
+initForms();
 
-await boot(); // Проверяем токен, восстанавливаем сессию
-layout();
-
-// ---------- Проверка авторизации ----------
-const current = location.hash.slice(1) || '/';
-const isPublic = (p) => p === '/login' || p === '/register';
-
-// Если не авторизован и заходит на приватный маршрут — редирект на /login
-if (!me() && !isPublic(current)) {
-    navigate('/login');
+// Показ первого экрана
+if (me()) {
+    show('#view-home');
+    await loadHome();
 } else {
-    dispatch(); // Рендерим текущий маршрут
+    show('#view-welcome');
 }
