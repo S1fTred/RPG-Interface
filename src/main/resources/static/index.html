@@ -4,14 +4,22 @@
     <meta charset="UTF-8" />
     <title>Tabletop RPG</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="preload" href="/css/style.css" as="style" />
-    <link rel="stylesheet" href="/css/style.css" />
+
+    <!-- Страховка: .hidden работает даже без внешнего CSS -->
+    <style>.hidden{display:none}</style>
+
+    <!-- Предзагрузка и подключение нового пути /css/style.css -->
+    <link rel="preload" href="/css/style.css?v=1" as="style" />
+    <link rel="stylesheet" href="/css/style.css?v=1" />
+
+    <!-- Fallback: если стиль лежит старым именем /styles.css -->
+    <link rel="preload" href="/css/styles.css?v=1" as="style" />
+    <link rel="stylesheet" href="/css/styles.css?v=1" />
 </head>
 
 <body>
 <header class="topbar">
-    <div class="brand">🎲 Tabletop RPG</div>
-    <!-- Кнопок «Войти/Регистрация» больше нет: формы ниже -->
+    <div class="brand">💀 Tabletop RPG</div>
 </header>
 
 <main class="container">

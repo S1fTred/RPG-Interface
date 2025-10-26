@@ -41,34 +41,42 @@ public class SecurityConfig {
         var jwtFilter = new JwtAuthenticationFilter(jwtService, userRepository);
 
         http
-            .csrf(csrf -> csrf.disable())
+            .csrf(csrf -> csrf
+                // H2 и auth-эндпоинты не требуют CSRF
+                .ignoringRequestMatchers("/h2-console/**", "/auth/**")
+                .disable()
+            )
             .cors(Customizer.withDefaults())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+            // ВАЖНО: все requestMatchers идут ДО anyRequest()
             .authorizeHttpRequests(auth -> auth
-                // ✅ отдать всю статику (classpath:/static, /public, /resources, /META-INF/resources)
+                // стандартные статические ресурсы (/css, /js, /images и т.п.)
                 .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
 
-                // ✅ явные статические и корневые маршруты (если нужно)
+                // наш статики набор + index.html
                 .requestMatchers(HttpMethod.GET,
-                    "/", "/index.html", "/favicon.ico",
-                    "/manifest.webmanifest",
-                    "/styles.css",
-                    "/js/**",        // <— наши модули лежат тут
-                    "/assets/**"     // картинки/шрифты, если используешь
+                    "/",
+                    "/index.html",
+                    "/favicon.ico",
+                    "/css/**",           // новый путь для стилей
+                    "/styles.css",       // старый одиночный файл стилей
+                    "/js/**",
+                    "/assets/**",
+                    "/**/*.png", "/**/*.jpg", "/**/*.svg", "/**/*.woff", "/**/*.woff2"
                 ).permitAll()
 
-                // ✅ публичные auth-эндпоинты + /error + H2
+                // публичные эндпоинты
                 .requestMatchers("/auth/**", "/error", "/h2-console/**").permitAll()
 
-                // 🔒 роль ADMIN для каталога предметов
+                // права
                 .requestMatchers("/api/items/**").hasRole("ADMIN")
-
-                // 🔒 остальной API — только аутентифицированным
                 .requestMatchers("/api/**").authenticated()
 
-                // прочее — открыто
+                // и только ПОСЛЕ всего — общее правило
                 .anyRequest().permitAll()
             )
+
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((req, res, e) -> { // 401
                     res.setStatus(HttpStatus.UNAUTHORIZED.value());
@@ -85,15 +93,16 @@ public class SecurityConfig {
                         """);
                 })
             )
-            // H2-консоль (если используешь)
+
+            // H2-консоль в iframe
             .headers(h -> h.frameOptions(f -> f.disable()))
-            // JWT фильтр ДО стандартного UsernamePasswordAuthenticationFilter
+
+            // JWT фильтр до UsernamePasswordAuthenticationFilter
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // CORS (на случай, если фронт будет отдельно)
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         var cfg = new CorsConfiguration();
@@ -106,6 +115,7 @@ public class SecurityConfig {
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("Authorization","Content-Type","Accept"));
         cfg.setAllowCredentials(false);
+
         var source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
         return source;
