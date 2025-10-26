@@ -4,26 +4,24 @@
     <meta charset="UTF-8" />
     <title>Tabletop RPG</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <!-- Страховка: .hidden работает даже без внешнего CSS -->
+    <!-- ВАЖНО: один корректный CSS -->
+    <link rel="stylesheet" href="/styles.css" />
     <style>.hidden{display:none}</style>
-
-    <!-- Предзагрузка и подключение нового пути /css/style.css -->
-    <link rel="preload" href="/css/style.css?v=1" as="style" />
-    <link rel="stylesheet" href="/css/style.css?v=1" />
-
-    <!-- Fallback: если стиль лежит старым именем /styles.css -->
-    <link rel="preload" href="/css/styles.css?v=1" as="style" />
-    <link rel="stylesheet" href="/css/styles.css?v=1" />
 </head>
 
 <body>
 <header class="topbar">
     <div class="brand">💀 Tabletop RPG</div>
+    <nav id="top-nav">
+        <button class="btn" id="btnLoginNav">Войти</button>
+        <button class="btn" id="btnRegisterNav">Регистрация</button>
+        <button class="btn ghost hidden" id="btnLogoutNav">↪︎ Выйти</button>
+    </nav>
 </header>
 
 <main class="container">
-    <!-- Welcome (гость) -->
+
+    <!-- Приветствие -->
     <section id="view-welcome" class="view">
         <div class="card">
             <h2>Добро пожаловать!</h2>
@@ -31,49 +29,28 @@
         </div>
     </section>
 
-    <!-- Home (после входа) -->
-    <section id="view-home" class="view hidden">
-        <div class="card">
-            <h2>Вы вошли</h2>
-            <p>Ниже — ваши данные: кампании (как GM) и персонажи.</p>
-        </div>
-
-        <div id="home-campaigns" class="card">
-            <h3>Мои кампании</h3>
-            <div id="home-campaigns-list" class="list">Загрузка...</div>
-        </div>
-
-        <div id="home-characters" class="card">
-            <h3>Мои персонажи</h3>
-            <div id="home-characters-list" class="list">Загрузка...</div>
-        </div>
-
-        <div class="row" id="logoutRow" style="margin-top:16px">
-            <button id="logoutBtn" class="btn ghost">↪︎ Выйти</button>
-        </div>
-    </section>
-
-    <!-- Login -->
+    <!-- Вход -->
     <section id="view-login" class="view hidden">
         <form id="loginForm" class="card" autocomplete="on">
             <h2>Вход</h2>
             <div id="loginError" class="form-error hidden"></div>
-            <input id="loginUsername" placeholder="username" />
-            <input id="loginPassword" placeholder="password" type="password" />
+            <input id="loginUsername" placeholder="Имя пользователя" />
+            <input id="loginPassword" placeholder="Пароль" type="password" />
             <div class="row">
                 <button id="loginSubmit" type="button" class="btn primary">Войти</button>
+                <button id="goRegister" type="button" class="btn ghost">Регистрация</button>
             </div>
         </form>
     </section>
 
-    <!-- Register -->
+    <!-- Регистрация -->
     <section id="view-register" class="view hidden">
         <form id="registerForm" class="card" autocomplete="off">
             <h2>Регистрация</h2>
             <div id="registerError" class="form-error hidden"></div>
-            <input id="regUsername" placeholder="username" />
-            <input id="regEmail" placeholder="email" type="email" />
-            <input id="regPassword" placeholder="password" type="password" />
+            <input id="regUsername" placeholder="Имя пользователя" />
+            <input id="regEmail" placeholder="Email" type="email" />
+            <input id="regPassword" placeholder="Пароль" type="password" />
             <div class="row">
                 <button id="registerSubmit" type="button" class="btn primary">
                     Зарегистрироваться
@@ -84,10 +61,108 @@
             </div>
         </form>
     </section>
+
+    <!-- Домой (после входа) -->
+    <section id="view-home" class="view hidden">
+        <div class="card">
+            <h2>Вы вошли</h2>
+            <p>Ниже — ваши данные: кампании (как GM) и персонажи.</p>
+        </div>
+
+        <div class="card">
+            <h3>Мои кампании</h3>
+            <div id="home-campaigns-list">Загрузка...</div>
+        </div>
+
+        <div class="card">
+            <h3>Мои персонажи</h3>
+            <div id="home-characters-list">Загрузка...</div>
+        </div>
+    </section>
+
 </main>
 
 <footer class="footer">© Tabletop RPG Interface</footer>
 
-<script type="module" src="/js/app.js"></script>
+<!-- Модули твоего фронта -->
+<script type="module">
+    import { login, register, me, signout, boot } from '/js/auth.js';
+    // Должна существовать экспортируемая функция из app.js, которая дергает загрузку кампаний/персонажей:
+    // export async function loadHomeData() { ... }
+    import { loadHomeData } from '/js/app.js';
+
+    // Утилита показа секций
+    function show(id) {
+        document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+        document.querySelector(id)?.classList.remove('hidden');
+    }
+
+    // Обновление навигации (кнопки)
+    function syncNav() {
+        const logged = !!me();
+        document.getElementById('btnLoginNav').classList.toggle('hidden', logged);
+        document.getElementById('btnRegisterNav').classList.toggle('hidden', logged);
+        document.getElementById('btnLogoutNav').classList.toggle('hidden', !logged);
+    }
+
+    // Переходы из шапки
+    document.getElementById('btnLoginNav').onclick = () => show('#view-login');
+    document.getElementById('btnRegisterNav').onclick = () => show('#view-register');
+    document.getElementById('btnLogoutNav').onclick = () => {
+        signout();
+        syncNav();
+        show('#view-welcome');
+    };
+
+    // Ссылки между формами
+    document.getElementById('goRegister').onclick = () => show('#view-register');
+    document.getElementById('goLoginFromRegister').onclick = () => show('#view-login');
+
+    // Вход
+    document.getElementById('loginSubmit').onclick = async () => {
+        const u = document.getElementById('loginUsername').value.trim();
+        const p = document.getElementById('loginPassword').value.trim();
+        const errBox = document.getElementById('loginError');
+        errBox.classList.add('hidden');
+        try {
+            await login(u, p);
+            syncNav();
+            show('#view-home');
+            // Автозагрузка данных домашней страницы
+            try { await loadHomeData(); } catch {}
+        } catch (e) {
+            errBox.textContent = e?.message || 'Ошибка входа';
+            errBox.classList.remove('hidden');
+        }
+    };
+
+    // Регистрация
+    document.getElementById('registerSubmit').onclick = async () => {
+        const u = document.getElementById('regUsername').value.trim();
+        const e = document.getElementById('regEmail').value.trim();
+        const p = document.getElementById('regPassword').value.trim();
+        const errBox = document.getElementById('registerError');
+        errBox.classList.add('hidden');
+        try {
+            await register(u, e, p); // внутри сразу логин
+            syncNav();
+            show('#view-home');
+            try { await loadHomeData(); } catch {}
+        } catch (er) {
+            errBox.textContent = er?.message || 'Ошибка регистрации';
+            errBox.classList.remove('hidden');
+        }
+    };
+
+    // Восстанавливаем сессию при загрузке
+    await boot();
+    syncNav();
+    if (me()) {
+        show('#view-home');
+        try { await loadHomeData(); } catch {}
+    } else {
+        show('#view-welcome');
+    }
+</script>
 </body>
 </html>

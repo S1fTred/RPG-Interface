@@ -7,7 +7,7 @@ import { api, readError } from './api.js';
 const $ = (sel) => document.querySelector(sel);
 function show(id) {
     document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
-    $(id).classList.remove('hidden');
+    $(id)?.classList.remove('hidden');
 }
 
 // ===== рендер списков =====
@@ -27,8 +27,8 @@ function renderCampaigns(listEl, items) {
     items.forEach(c => {
         const row = el('div', 'row-item');
         row.append(
-            el('div','title', c.name),
-            el('div','muted', `ID: ${c.id}`)
+            el('div', 'title', c.name),
+            el('div', 'muted', `ID: ${c.id}`)
         );
         listEl.append(row);
     });
@@ -43,8 +43,8 @@ function renderCharacters(listEl, items) {
     items.forEach(ch => {
         const row = el('div', 'row-item');
         row.append(
-            el('div','title', `${ch.name} · ${ch.clazz} · ${ch.race}`),
-            el('div','muted', `HP: ${ch.hp}/${ch.maxHp}`)
+            el('div', 'title', `${ch.name} · ${ch.clazz} · ${ch.race}`),
+            el('div', 'muted', `HP: ${ch.hp}/${ch.maxHp}`)
         );
         listEl.append(row);
     });
@@ -58,7 +58,7 @@ async function loadHome() {
     listH.textContent = 'Загрузка...';
 
     try {
-        // Мои кампании (как GM): бек возвращает по текущему пользователю
+        // Мои кампании (как GM)
         const cRes = await api.get('/api/campaigns');
         if (!cRes.ok) throw new Error(await readError(cRes));
         const campaigns = await cRes.json();
@@ -68,7 +68,7 @@ async function loadHome() {
     }
 
     try {
-        // Мои персонажи — в бекенде есть legacy-эндпоинт by-owner-id
+        // Мои персонажи
         const u = me();
         const hRes = await api.get(`/api/characters/by-owner-id/${u.id}`);
         if (!hRes.ok) throw new Error(await readError(hRes));
@@ -79,13 +79,24 @@ async function loadHome() {
     }
 }
 
+// ===== экспортируем loadHomeData для index.html =====
+export async function loadHomeData() {
+    try {
+        await loadHome();
+    } catch (e) {
+        console.error('Ошибка при загрузке данных домашней страницы:', e);
+    }
+}
+
 // ===== инициализация обработчиков форм =====
 function initForms() {
     // Вход
     const loginBtn = $('#loginSubmit');
     if (loginBtn) {
         loginBtn.addEventListener('click', async () => {
-            const errBox = $('#loginError'); errBox.classList.add('hidden'); errBox.textContent = '';
+            const errBox = $('#loginError');
+            errBox.classList.add('hidden');
+            errBox.textContent = '';
             const u = $('#loginUsername').value.trim();
             const p = $('#loginPassword').value;
             loginBtn.disabled = true;
@@ -107,7 +118,9 @@ function initForms() {
     const goLogin = $('#goLoginFromRegister');
     if (regBtn) {
         regBtn.addEventListener('click', async () => {
-            const errBox = $('#registerError'); errBox.classList.add('hidden'); errBox.textContent = '';
+            const errBox = $('#registerError');
+            errBox.classList.add('hidden');
+            errBox.textContent = '';
             const u = $('#regUsername').value.trim();
             const em = $('#regEmail').value.trim();
             const p = $('#regPassword').value;
@@ -124,6 +137,7 @@ function initForms() {
             }
         });
     }
+
     if (goLogin) {
         goLogin.addEventListener('click', () => {
             show('#view-login');
