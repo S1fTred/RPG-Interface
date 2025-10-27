@@ -15,23 +15,19 @@ export async function renderJournals(){
     mount(page);
 
     try{
-        // Мои кампании (как GM)
-        const gmCampaigns = await api.get('/api/campaigns'); // массив кампаний
+        const gmCampaigns = await api.get('/api/campaigns');
 
-        // Параллельно тянем журналы для каждой кампании с include=all
         const lists = await Promise.all(
             (gmCampaigns || []).map(async camp => {
                 try{
                     const items = await api.get(`/api/campaigns/${camp.id}/journal?include=all`);
-                    // Возвращаем только мои записи (я — автор)
                     return (items || []).filter(e => e.authorId === user.id).map(e => ({ ...e, campaignId: camp.id }));
                 }catch(_){
-                    return []; // если одна кампания упала — не валим весь экран
+                    return [];
                 }
             })
         );
 
-        // Объединяем всё и сортируем по дате создания (свежее сверху)
         const all = lists.flat().sort((a,b)=>{
             const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
             const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;

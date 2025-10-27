@@ -22,7 +22,7 @@ export async function renderItems(){
         page.appendChild(wrap);
 
         try{
-            const items = await api.get('/api/items'); // ожидаем массив
+            const items = await api.get('/api/items');
             const rows = (items || []).map(i => [
                 el('strong',{}, i.name),
                 i.description || '',
@@ -54,7 +54,7 @@ export async function renderItems(){
                     : el('div',{class:'empty'},'Пока пусто'),
                 el('hr'),
                 h2('Создать'),
-                form() // форма создания
+                form()
             ));
         }catch(e){
             page.innerHTML = '';
@@ -79,10 +79,7 @@ export async function renderItems(){
                 weight: weight.value !== '' ? Number(weight.value) : null,
                 price:  price.value  !== '' ? Number(price.value)  : null
             };
-            if (!body.name){
-                toast('Укажите название');
-                return;
-            }
+            if (!body.name){ toast('Укажите название'); return; }
             setBusy(submit, true);
             try{
                 if (item) {

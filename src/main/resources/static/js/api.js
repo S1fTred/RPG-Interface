@@ -71,7 +71,6 @@ export async function restoreSession() {
 // --- базовый fetch с повтором после 401 ---
 async function doFetch(path, opts = {}, retry = true) {
     const headers = Object.assign({}, opts.headers || {});
-    // Проставляем JSON Content-Type только когда есть тело и это не FormData
     const hasBody = opts.body !== undefined && opts.body !== null;
     const isForm = typeof FormData !== 'undefined' && (hasBody && opts.body instanceof FormData);
     if (hasBody && !isForm && !headers['Content-Type']) {
@@ -113,7 +112,6 @@ async function parseOrThrow(res) {
         if (ct.includes('application/json')) {
             return await res.json();
         }
-        // если не json, вернём текст (на всякий случай)
         return await res.text();
     } else {
         const msg = await readError(res);
@@ -123,9 +121,9 @@ async function parseOrThrow(res) {
 
 // --- удобные методы, возвращают уже данные (JSON/текст) ---
 export const api = {
-    get: async (p) => parseOrThrow(await doFetch(p, { method: 'GET' })),
-    post: async (p, body) => parseOrThrow(await doFetch(p, { method: 'POST', body: body instanceof FormData ? body : JSON.stringify(body) })),
-    put: async (p, body) => parseOrThrow(await doFetch(p, { method: 'PUT', body: body instanceof FormData ? body : JSON.stringify(body) })),
+    get:   async (p)       => parseOrThrow(await doFetch(p, { method: 'GET' })),
+    post:  async (p, body) => parseOrThrow(await doFetch(p, { method: 'POST',  body: body instanceof FormData ? body : JSON.stringify(body) })),
+    put:   async (p, body) => parseOrThrow(await doFetch(p, { method: 'PUT',   body: body instanceof FormData ? body : JSON.stringify(body) })),
     patch: async (p, body) => parseOrThrow(await doFetch(p, { method: 'PATCH', body: body instanceof FormData ? body : JSON.stringify(body) })),
-    del: async (p) => parseOrThrow(await doFetch(p, { method: 'DELETE' })),
+    del:   async (p)       => parseOrThrow(await doFetch(p, { method: 'DELETE' })),
 };

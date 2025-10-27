@@ -16,7 +16,6 @@ export async function renderCharacterDetail(id){
     try{
         const c = await api.get(`/api/characters/${id}`);
 
-        // ====== HP controls (set / delta) ======
         const hpSetInput = input({ type:'number', value: String(c.hp ?? 0), placeholder:'Set HP' });
         const hpDeltaInput = input({ type:'number', placeholder:'Δ HP (например, -3)' });
 
@@ -31,7 +30,6 @@ export async function renderCharacterDetail(id){
                 const upd = await api.patch(`/api/characters/${id}/hp`, body);
                 hpSetInput.value = String(upd.hp);
                 toast('HP обновлён');
-                // Обновим краткую сводку
                 hpSummary.textContent = `${upd.hp}/${upd.maxHp}`;
             }catch(err){
                 toast(err?.message || 'Ошибка обновления HP');
@@ -40,14 +38,12 @@ export async function renderCharacterDetail(id){
             }
         });
 
-        // ====== Attributes table (по нашему DTO) ======
         const A = c.attributes || {};
         const attrsRows = [
             ['STR', A.strength], ['DEX', A.dexterity], ['CON', A.constitution],
             ['INT', A.intelligence], ['WIS', A.wisdom], ['CHA', A.charisma],
         ].map(([n,v]) => [n, String(v ?? '-')]);
 
-        // ====== Partial update form ======
         const nameIn   = input({ placeholder:'Имя', value: c.name || '' });
         const classIn  = input({ placeholder:'Класс', value: c.clazz || '' });
         const raceIn   = input({ placeholder:'Раса', value: c.race || '' });
@@ -68,7 +64,6 @@ export async function renderCharacterDetail(id){
             try{
                 await api.patch(`/api/characters/${id}`, patch);
                 toast('Сохранено');
-                // Перезагрузим экран целиком, чтобы все данные обновились
                 renderCharacterDetail(id);
             }catch(err){
                 toast(err?.message || 'Ошибка сохранения');
@@ -77,21 +72,13 @@ export async function renderCharacterDetail(id){
             }
         });
 
-        // ====== Inventory (мягкая загрузка) ======
         let inv = [];
-        try{
-            inv = await api.get(`/api/characters/${id}/inventory`);
-        }catch{ inv = []; /* если API ещё нет — просто пусто */ }
+        try{ inv = await api.get(`/api/characters/${id}/inventory`); }catch{ inv = []; }
 
         const invRows = (inv || []).map(ci => [
-            ci.itemName,
-            String(ci.quantity ?? ''),
-            ci.itemDescription || '',
-            String(ci.itemWeight ?? ''),
-            String(ci.itemPrice ?? '')
+            ci.itemName, String(ci.quantity ?? ''), ci.itemDescription || '', String(ci.itemWeight ?? ''), String(ci.itemPrice ?? '')
         ]);
 
-        // ====== Render ======
         const hpSummary = el('span', {}, `${c.hp}/${c.maxHp}`);
 
         page.innerHTML = '';
@@ -104,11 +91,7 @@ export async function renderCharacterDetail(id){
                     kv('Раса',  c.race  || '-'),
                     kv('Уровень', String(c.level ?? '-')),
                     kv('HP', hpSummary),
-                    el('div',{class:'toolbar'}, [
-                        hpSetInput,
-                        hpDeltaInput,
-                        applyHpBtn
-                    ])
+                    el('div',{class:'toolbar'}, [hpSetInput, hpDeltaInput, applyHpBtn])
                 ]),
                 el('div',{class:'col', style:'flex:1; min-width:260px;'},[
                     h2('Атрибуты'),

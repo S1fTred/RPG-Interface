@@ -16,8 +16,7 @@ function section(title) {
 function list(items, emptyText) {
     const ul = el('ul', { class: 'list' });
     if (!items || items.length === 0) {
-        const li = el('li', { class: 'muted' }, emptyText);
-        ul.append(li);
+        ul.append(el('li', { class: 'muted' }, emptyText));
         return ul;
     }
     items.forEach(it => ul.append(it));
@@ -34,12 +33,10 @@ export async function renderDashboard() {
         return mount(root);
     }
 
-    // Секции
     const sChars = section('Мои персонажи');
     const sCamps = section('Мои кампании (я — GM)');
     const sJournals = section('Последние журналы моих кампаний');
 
-    // Скелетоны
     sChars.body.append(skeleton(1));
     sCamps.body.append(skeleton(1));
     sJournals.body.append(skeleton(1));
@@ -48,13 +45,12 @@ export async function renderDashboard() {
     mount(root);
 
     try {
-        // Параллельно грузим персонажей и кампании
         const [chars, camps] = await Promise.all([
             api.get(`/api/characters/by-owner-id/${u.id}`).catch(() => []),
             api.get('/api/campaigns').catch(() => []),
         ]);
 
-        // ---- Персонажи
+        // Персонажи
         sChars.body.innerHTML = '';
         sChars.body.append(
             list(
@@ -71,7 +67,7 @@ export async function renderDashboard() {
             )
         );
 
-        // ---- Кампании
+        // Кампании
         sCamps.body.innerHTML = '';
         sCamps.body.append(
             list(
@@ -94,7 +90,7 @@ export async function renderDashboard() {
             )
         );
 
-        // ---- Журналы (по моим кампаниям, include=all), топ-10 последних
+        // Журналы
         const journalLists = await Promise.all(
             (camps || []).map(async camp => {
                 try {

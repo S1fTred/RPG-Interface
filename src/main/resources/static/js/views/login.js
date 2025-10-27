@@ -11,7 +11,6 @@ export function renderLogin() {
     const submit = button('Войти', 'btn primary');
 
     async function onSubmit() {
-        if (submit.disabled) return;
         const usernameOrEmail = (u.value || '').trim();
         const password = p.value || '';
         if (!usernameOrEmail || !password) {
@@ -22,7 +21,7 @@ export function renderLogin() {
         try {
             await login(usernameOrEmail, password);
             toast('Успешный вход');
-            navigate('/'); // Домой, там автоподгрузка
+            navigate('/'); // Домой
         } catch (err) {
             toast((err && err.message) || 'Ошибка входа');
         } finally {
@@ -30,17 +29,12 @@ export function renderLogin() {
         }
     }
 
-    // отправка по Enter
     [u, p].forEach(ctrl => {
         ctrl.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                onSubmit();
-            }
+            if (e.key === 'Enter') { e.preventDefault(); onSubmit(); }
         });
     });
 
-    // кнопка сабмита
     submit.addEventListener('click', onSubmit);
 
     const box = card(
@@ -48,13 +42,11 @@ export function renderLogin() {
         el('div', {}, [u]),
         el('div', {}, [p]),
         el('div', { class: 'toolbar' }, [
-            submit
-            // Кнопка "Регистрация" есть в верхней навигации
+            submit,
+            button('Регистрация','btn', ()=> navigate('/register'))
         ])
     );
 
     mount(el('div', {}, box));
-
-    // автофокус
     setTimeout(() => u.focus(), 0);
 }

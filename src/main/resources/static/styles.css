@@ -36,6 +36,8 @@ html,body { margin:0; padding:0; background:var(--bg); color:var(--text); }
 .btn.primary:hover{ background:var(--primary-2); }
 .btn.ghost { background:transparent; }
 .btn.link { background:transparent; border-color:transparent; padding:8px 10px; }
+.btn.danger { background:rgba(255,92,92,.12); border-color:rgba(255,92,92,.35); color:#ffd6d6; }
+.btn.danger:hover { background:rgba(255,92,92,.2); }
 
 input, select, textarea {
     width:100%; margin:6px 0; padding:10px 12px;
@@ -55,7 +57,7 @@ textarea { min-height:120px; resize:vertical; }
 
 .footer { opacity:.7; text-align:center; padding:24px 0 40px; font-size:14px; border-top:1px solid var(--border); }
 
-/* ====== NEW: внутреннее меню и раскладки ====== */
+/* ====== внутреннее меню и раскладки ====== */
 .nav { display:flex; gap:.5rem; margin: 8px 0 16px; }
 .inline-form { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
 .stack { display:flex; flex-direction:column; gap:.5rem; }
@@ -77,10 +79,6 @@ textarea { min-height:120px; resize:vertical; }
 .mt-l{ margin-top:1.25rem }
 .ml{ margin-left:.75rem }
 .right{ margin-left:auto }
-
-/* States */
-.btn.danger { background:rgba(255,92,92,.12); border-color:rgba(255,92,92,.35); color:#ffd6d6; }
-.btn.danger:hover { background:rgba(255,92,92,.2); }
 
 /* Skeleton loader */
 .skeleton { background:linear-gradient(90deg,#1a2235,#202a42,#1a2235); background-size:200% 100%; animation:sk 1.2s infinite; height:1rem; border-radius:.25rem }

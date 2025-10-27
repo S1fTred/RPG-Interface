@@ -7,21 +7,16 @@ import { navigate } from '../router.js';
 
 export async function renderCharacters(){
     const user = me();
-    if (!user){
-        mount(card(h1('Требуется вход')));
-        return;
-    }
+    if (!user){ mount(card(h1('Требуется вход'))); return; }
 
     const page = el('div',{}, card(h1('Мои персонажи'), el('div',{}, 'Загрузка...')));
     mount(page);
 
     try{
-        // скелетон
         page.innerHTML = '';
-        const shell = card(h1('Мои персонажи'), el('div',{}, skeleton(3)));
-        page.appendChild(shell);
+        page.appendChild(card(h1('Мои персонажи'), el('div',{}, skeleton(3))));
 
-        const chars = await api.get(`/api/characters/by-owner-id/${user.id}`); // массив
+        const chars = await api.get(`/api/characters/by-owner-id/${user.id}`);
 
         const rows = (chars || []).map(c => [
             el('strong',{}, c.name),

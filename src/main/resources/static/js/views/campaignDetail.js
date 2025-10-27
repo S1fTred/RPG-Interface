@@ -13,28 +13,23 @@ export async function renderCampaignDetail(id){
     mount(page);
 
     try{
-        // Кампания
         const camp = await api.get(`/api/campaigns/${id}`);
 
-        // Права
         const isGM = (camp.gmId === user?.id);
         const title = isGM ? `${camp.name} — панель GM` : (camp.name || `Кампания #${id}`);
 
-        // Параллельно тянем участников, персонажей и журнал
         const [members, chars, journals] = await Promise.all([
             api.get(`/api/campaigns/${id}/members`).catch(()=>[]),
             api.get(`/api/campaigns/${id}/characters`).catch(()=>[]),
             api.get(`/api/campaigns/${id}/journal${isGM ? '?include=all':''}`).catch(()=>[])
         ]);
 
-        // ===== Шапка =====
         page.innerHTML='';
         page.appendChild(card(
             h1(title),
             el('div',{}, camp.description || '')
         ));
 
-        // ===== Участники =====
         const memberRows = (members || []).map(m => [
             el('strong',{}, m.username || `User #${m.userId}`),
             m.email || '',
@@ -59,12 +54,10 @@ export async function renderCampaignDetail(id){
                 : el('div',{class:'empty'},'Пока никого')
         );
 
-        // GM-only: форма добавить/обновить участника (PUT идемпотентный)
         if (isGM){
             const userIdInput = input({ placeholder:'userId (UUID)', autocomplete:'off' });
             const roleSel = select({}, [
                 {value:'PLAYER', label:'PLAYER', selected:true},
-                // Назначение второго GM запрещено бизнес-правилом на бэке, но поле оставим для явной попытки
                 {value:'GM', label:'GM'}
             ]);
             const addBtn = button('Добавить / Обновить','btn primary');
@@ -86,7 +79,6 @@ export async function renderCampaignDetail(id){
         }
         page.appendChild(memberCard);
 
-        // ===== Персонажи =====
         const charRows = (chars || []).map(c => [
             el('strong',{}, c.name || `#${c.id}`),
             c.clazz || '', c.race || '', String(c.level ?? ''),
@@ -101,7 +93,6 @@ export async function renderCampaignDetail(id){
             )
         );
 
-        // ===== Журналы =====
         const sortedJ = (journals || []).slice().sort((a,b)=>{
             const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
             const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;

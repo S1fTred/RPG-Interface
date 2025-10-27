@@ -1,5 +1,4 @@
 // static/js/views/register.js
-
 import { mount } from '../app.js';
 import { el, card, h1, input, button, toast, setBusy } from '../ui.js';
 import { register } from '../auth.js';
@@ -18,15 +17,11 @@ export function renderRegister(){
             const u = username.value.trim();
             const e = email.value.trim();
             const p = password.value;
-
-            if(!u || !e || !p){
-                toast('Заполните все поля');
-                return;
-            }
+            if(!u || !e || !p){ toast('Заполните все поля'); return; }
 
             setBusy(submit, true);
             try{
-                await register(u, e, p); // внутри сразу логин
+                await register(u, e, p);
                 toast('Готово! Вы вошли под новой учетной записью');
                 navigate('/');
             }catch(err){
@@ -41,14 +36,7 @@ export function renderRegister(){
         el('div', { class:'toolbar' }, [submit, toLogin])
     ]);
 
-    const box = card(
-        h1('Регистрация'),
-        form
-    );
-
-    const root = el('div',{}, box);
-    mount(root);
-
-    // автофокус
+    const box = card(h1('Регистрация'), form);
+    mount(el('div',{}, box));
     setTimeout(()=> username.focus(), 0);
 }

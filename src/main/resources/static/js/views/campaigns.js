@@ -7,24 +7,19 @@ import { navigate } from '../router.js';
 
 export async function renderCampaigns(){
     const user = me();
-    if (!user){
-        mount(card(h1('Требуется вход')));
-        return;
-    }
+    if (!user){ mount(card(h1('Требуется вход'))); return; }
 
     const page = el('div',{}, card(h1('Кампании'), el('div',{}, 'Загрузка...')));
     mount(page);
 
     async function load(){
-        // каркас + скелетон
         page.innerHTML = '';
         const shell = card(h1('Кампании'), el('div',{}, skeleton(3)));
         page.appendChild(shell);
 
         try{
-            const gmCampaigns = await api.get('/api/campaigns'); // кампании, где я GM
+            const gmCampaigns = await api.get('/api/campaigns');
 
-            // Форма создания
             const nameIn = input({ placeholder:'Название новой кампании', required:'required' });
             const createBtn = button('Создать','btn primary');
             createBtn.addEventListener('click', async ()=>{
@@ -34,7 +29,6 @@ export async function renderCampaigns(){
                 try{
                     const created = await api.post('/api/campaigns', { name });
                     toast('Кампания создана');
-                    // сразу переходим в кампанию
                     navigate('/campaigns/:id', { id: created.id });
                 }catch(err){
                     toast(err?.message || 'Ошибка создания кампании');
@@ -43,7 +37,6 @@ export async function renderCampaigns(){
                 }
             });
 
-            // Таблица кампаний (где я GM)
             const rowsGM = (gmCampaigns || []).map(c => [
                 el('strong',{}, c.name || `Кампания #${c.id}`),
                 c.description || '',
@@ -66,7 +59,6 @@ export async function renderCampaigns(){
                 )
             );
 
-            // TODO: список кампаний, где я игрок — добавим, когда появится соответствующий API
         }catch(e){
             page.innerHTML = '';
             page.appendChild(card(
