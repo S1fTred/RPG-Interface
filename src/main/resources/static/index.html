@@ -19,6 +19,15 @@
     </nav>
 </header>
 
+<!-- Внутренняя навигация (показывается только после входа) -->
+<nav id="main-nav" class="nav hidden" style="margin: 0 1rem;">
+    <button class="btn link" data-goto="#view-home">Home</button>
+    <button class="btn link" data-goto="#view-campaigns">Кампании</button>
+    <button class="btn link" data-goto="#view-characters">Персонажи</button>
+    <button class="btn link" data-goto="#view-journals">Журналы</button>
+    <button class="btn link admin-only" data-goto="#view-items">Каталог предметов</button>
+</nav>
+
 <main class="container">
 
     <!-- Приветствие -->
@@ -80,29 +89,197 @@
         </div>
     </section>
 
+    <!-- КАМПАНИИ -->
+    <section id="view-campaigns" class="view hidden">
+        <div class="card row" style="justify-content: space-between; align-items: center;">
+            <h2>Кампании (я — GM)</h2>
+            <form id="form-create-campaign" class="inline-form">
+                <input name="name" placeholder="Новая кампания..." required />
+                <button type="submit" class="btn">Создать</button>
+            </form>
+        </div>
+        <div id="campaigns-list" class="cards"></div>
+    </section>
+
+    <!-- ОДНА КАМПАНИЯ (детальная) -->
+    <section id="view-campaign" class="view hidden" data-campaign-id="">
+        <div class="card">
+            <button class="btn link" id="btn-back-to-campaigns">← Назад</button>
+            <h2 id="campaign-title" style="margin-top:.5rem;">Кампания</h2>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <h3>Участники</h3>
+                <form id="form-add-member" class="inline-form">
+                    <input name="userId" type="number" placeholder="User ID" required />
+                    <select name="roleInCampaign">
+                        <option value="PLAYER">PLAYER</option>
+                    </select>
+                    <button class="btn">Добавить</button>
+                </form>
+                <div id="members-list" class="list mt-s"></div>
+            </div>
+
+            <div class="card">
+                <h3>Персонажи</h3>
+                <form id="form-create-character" class="stack small">
+                    <input name="name" placeholder="Имя" required />
+                    <input name="clazz" placeholder="Класс" required />
+                    <input name="race" placeholder="Раса" required />
+                    <input name="level" type="number" min="1" value="1" required />
+                    <input name="maxHp" type="number" min="1" value="10" required />
+                    <input name="hp" type="number" min="0" value="10" required />
+                    <fieldset class="attrs">
+                        <legend>Attributes</legend>
+                        <input name="strength" type="number" placeholder="STR" value="10" />
+                        <input name="dexterity" type="number" placeholder="DEX" value="10" />
+                        <input name="constitution" type="number" placeholder="CON" value="10" />
+                        <input name="intelligence" type="number" placeholder="INT" value="10" />
+                        <input name="wisdom" type="number" placeholder="WIS" value="10" />
+                        <input name="charisma" type="number" placeholder="CHA" value="10" />
+                    </fieldset>
+                    <button class="btn">Создать персонажа</button>
+                </form>
+                <div id="campaign-characters" class="cards mt-s"></div>
+            </div>
+        </div>
+
+        <div class="card mt-l">
+            <h3>Журналы</h3>
+            <div class="row" style="gap:1rem; align-items:center;">
+                <form id="form-create-journal" class="stack small" style="flex:1;">
+                    <input name="type" placeholder="Тип" required />
+                    <select name="visibility">
+                        <option value="PLAYERS">PLAYERS</option>
+                        <option value="GM_ONLY">GM_ONLY</option>
+                    </select>
+                    <input name="title" placeholder="Заголовок (опц.)" />
+                    <textarea name="content" placeholder="Содержимое" required></textarea>
+                    <input name="tags" placeholder="Теги (через запятую)" />
+                    <button class="btn">Добавить запись</button>
+                </form>
+                <div class="right">
+                    <label>Фильтр типа: <input id="filter-journal-type" placeholder="например, session" /></label>
+                    <label class="ml"><input type="checkbox" id="chk-include-all" /> include=all (я — GM)</label>
+                    <button id="btn-reload-journals" class="btn ml">Обновить</button>
+                </div>
+            </div>
+            <div id="journal-list" class="list mt-s"></div>
+        </div>
+    </section>
+
+    <!-- ПЕРСОНАЖИ (мои, legacy by-owner) -->
+    <section id="view-characters" class="view hidden">
+        <div class="card"><h2>Мои персонажи</h2></div>
+        <div id="my-characters" class="cards"></div>
+    </section>
+
+    <!-- ПЕРСОНАЖ (детальная) -->
+    <section id="view-character" class="view hidden" data-character-id="">
+        <div class="card">
+            <button class="btn link" id="btn-back-to-characters">← Назад</button>
+            <h2 id="char-name" style="margin-top:.5rem;">Персонаж</h2>
+        </div>
+        <div class="grid-2">
+            <div class="card">
+                <dl class="kv">
+                    <dt>Класс</dt><dd id="char-class"></dd>
+                    <dt>Раса</dt><dd id="char-race"></dd>
+                    <dt>Уровень</dt><dd id="char-level"></dd>
+                    <dt>HP</dt><dd><span id="char-hp"></span> / <span id="char-maxHp"></span></dd>
+                </dl>
+                <form id="form-patch-hp" class="inline-form">
+                    <input name="delta" type="number" placeholder="Δ HP" />
+                    <input name="set" type="number" placeholder="Set HP" />
+                    <button class="btn">Применить</button>
+                </form>
+            </div>
+            <div class="card">
+                <h3>Атрибуты</h3>
+                <div id="char-attrs" class="attrs-read"></div>
+                <details class="mt-s">
+                    <summary>Редактировать</summary>
+                    <form id="form-update-character" class="stack small">
+                        <input name="name" placeholder="Имя" />
+                        <input name="clazz" placeholder="Класс" />
+                        <input name="race" placeholder="Раса" />
+                        <input name="level" type="number" min="1" />
+                        <input name="maxHp" type="number" min="1" />
+                        <button class="btn">Сохранить</button>
+                    </form>
+                </details>
+            </div>
+        </div>
+        <div class="card mt-l">
+            <button id="btn-delete-character" class="btn danger">Удалить персонажа</button>
+        </div>
+    </section>
+
+    <!-- ЖУРНАЛЫ (standalone) -->
+    <section id="view-journals" class="view hidden">
+        <div class="card">
+            <h2>Журналы по кампании</h2>
+            <form id="form-journals-pick" class="inline-form">
+                <input name="campaignId" type="number" placeholder="campaignId" required />
+                <input name="type" placeholder="type (опц.)" />
+                <label class="ml"><input type="checkbox" name="includeAll" /> include=all</label>
+                <button class="btn">Загрузить</button>
+            </form>
+        </div>
+        <div id="journals-standalone" class="list mt-s"></div>
+    </section>
+
+    <!-- ПРЕДМЕТЫ (ADMIN) -->
+    <section id="view-items" class="view hidden">
+        <div class="card">
+            <h2>Каталог предметов (ADMIN)</h2>
+            <form id="form-create-item" class="inline-form">
+                <input name="name" placeholder="Название" required />
+                <input name="rarity" placeholder="Редкость" />
+                <button class="btn">Добавить</button>
+            </form>
+        </div>
+        <div id="items-list" class="list mt-s"></div>
+    </section>
+
 </main>
 
 <footer class="footer">© Tabletop RPG Interface</footer>
 
-<!-- Модули твоего фронта -->
+<!-- Модули фронта -->
 <script type="module">
     import { login, register, me, signout, boot } from '/js/auth.js';
-    // Должна существовать экспортируемая функция из app.js, которая дергает загрузку кампаний/персонажей:
-    // export async function loadHomeData() { ... }
+    // Существующая функция: загружает кампании/персонажи в Home
     import { loadHomeData } from '/js/app.js';
 
-    // Утилита показа секций
-    function show(id) {
+    // Новые модули экранов (см. файлы из канваса)
+    import { initCampaignsView } from '/js/campaigns.js';
+    import { initCharactersView } from '/js/characters.js';
+    import { initJournalsStandalone } from '/js/journals.js';
+    import { initItemsView } from '/js/items.js';
+
+    // Глобальный show для других модулей
+    window.show = function(id) {
         document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
         document.querySelector(id)?.classList.remove('hidden');
+    };
+
+    // Обновление навигации/ролей
+    function gateRoles() {
+        const user = me();
+        const isAdmin = !!user && Array.isArray(user.roles) && user.roles.includes('ROLE_ADMIN');
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !isAdmin));
     }
 
-    // Обновление навигации (кнопки)
+    // Включение/выключение верхней auth-навигации + внутреннего меню
     function syncNav() {
         const logged = !!me();
         document.getElementById('btnLoginNav').classList.toggle('hidden', logged);
         document.getElementById('btnRegisterNav').classList.toggle('hidden', logged);
         document.getElementById('btnLogoutNav').classList.toggle('hidden', !logged);
+        document.getElementById('main-nav').classList.toggle('hidden', !logged);
+        if (logged) gateRoles();
     }
 
     // Переходы из шапки
@@ -118,6 +295,19 @@
     document.getElementById('goRegister').onclick = () => show('#view-register');
     document.getElementById('goLoginFromRegister').onclick = () => show('#view-login');
 
+    // Навигация внутренних разделов
+    document.querySelectorAll('#main-nav [data-goto]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const to = btn.getAttribute('data-goto');
+            show(to);
+            // ленивые инициализации экранов
+            if (to === '#view-campaigns') initCampaignsView();
+            if (to === '#view-characters') initCharactersView();
+            if (to === '#view-journals') initJournalsStandalone();
+            if (to === '#view-items') initItemsView();
+        });
+    });
+
     // Вход
     document.getElementById('loginSubmit').onclick = async () => {
         const u = document.getElementById('loginUsername').value.trim();
@@ -128,7 +318,6 @@
             await login(u, p);
             syncNav();
             show('#view-home');
-            // Автозагрузка данных домашней страницы
             try { await loadHomeData(); } catch {}
         } catch (e) {
             errBox.textContent = e?.message || 'Ошибка входа';
@@ -164,5 +353,9 @@
         show('#view-welcome');
     }
 </script>
+
+<!-- Важно: файлы модулей должны существовать в /js/, см. канвас -->
+<!-- /js/ui.js не обязателен для index.html напрямую, т.к. подключается внутри модулей -->
+
 </body>
 </html>

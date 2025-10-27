@@ -1,4 +1,4 @@
-// js/api.js — минимальный helper с авто-добавлением Authorization и refresh
+// js/api.js — helper с авто Authorization, auto-refresh и авто JSON-парсинг
 
 const DEFAULT_BASE = ''; // same-origin (http://localhost:8080)
 const KEY_REFRESH = 'refreshToken';
@@ -68,9 +68,15 @@ export async function restoreSession() {
     }
 }
 
-// --- базовый fetch c повтором после 401 ---
+// --- базовый fetch с повтором после 401 ---
 async function doFetch(path, opts = {}, retry = true) {
-    const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+    const headers = Object.assign({}, opts.headers || {});
+    // Проставляем JSON Content-Type только когда есть тело и это не FormData
+    const hasBody = opts.body !== undefined && opts.body !== null;
+    const isForm = typeof FormData !== 'undefined' && (hasBody && opts.body instanceof FormData);
+    if (hasBody && !isForm && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
     if (accessToken) headers['Authorization'] = 'Bearer ' + accessToken;
 
     const res = await fetch(getApiUrl() + path, { ...opts, headers });
@@ -82,28 +88,44 @@ async function doFetch(path, opts = {}, retry = true) {
     return res;
 }
 
-// --- удобные методы ---
-export const api = {
-    get: (p) => doFetch(p, { method: 'GET' }),
-    post: (p, body) => doFetch(p, { method: 'POST', body: JSON.stringify(body) }),
-    put: (p, body) => doFetch(p, { method: 'PUT', body: JSON.stringify(body) }),
-    patch: (p, body) => doFetch(p, { method: 'PATCH', body: JSON.stringify(body) }),
-    del: (p) => doFetch(p, { method: 'DELETE' }),
-};
-
 // --- хелпер: нормализация ошибок ответа ---
 export async function readError(res) {
     try {
-        const data = await res.json();
-        if (data?.message) return data.message;
-        if (data?.error) return data.error;
-        return JSON.stringify(data);
-    } catch {
-        try {
-            const txt = await res.text();
-            return txt || res.statusText || 'Ошибка запроса';
-        } catch {
-            return 'Ошибка запроса';
+        const ct = res.headers.get('Content-Type') || '';
+        if (ct.includes('application/json')) {
+            const data = await res.json();
+            if (data?.message) return data.message;
+            if (data?.error) return data.error;
+            return JSON.stringify(data);
         }
+        const txt = await res.text();
+        return txt || res.statusText || 'Ошибка запроса';
+    } catch {
+        return 'Ошибка запроса';
     }
 }
+
+// --- авто JSON парсер, выбрасывает строку-ошибку при !ok ---
+async function parseOrThrow(res) {
+    if (res.ok) {
+        if (res.status === 204) return null;
+        const ct = res.headers.get('Content-Type') || '';
+        if (ct.includes('application/json')) {
+            return await res.json();
+        }
+        // если не json, вернём текст (на всякий случай)
+        return await res.text();
+    } else {
+        const msg = await readError(res);
+        throw new Error(msg);
+    }
+}
+
+// --- удобные методы, возвращают уже данные (JSON/текст) ---
+export const api = {
+    get: async (p) => parseOrThrow(await doFetch(p, { method: 'GET' })),
+    post: async (p, body) => parseOrThrow(await doFetch(p, { method: 'POST', body: body instanceof FormData ? body : JSON.stringify(body) })),
+    put: async (p, body) => parseOrThrow(await doFetch(p, { method: 'PUT', body: body instanceof FormData ? body : JSON.stringify(body) })),
+    patch: async (p, body) => parseOrThrow(await doFetch(p, { method: 'PATCH', body: body instanceof FormData ? body : JSON.stringify(body) })),
+    del: async (p) => parseOrThrow(await doFetch(p, { method: 'DELETE' })),
+};

@@ -1,93 +1,131 @@
+// src/main/resources/static/js/views/campaignDetail.js
 import { mount } from '../app.js';
-import { el, card, h1, h2, table, button, input, select, toast } from '../ui.js';
+import { el, card, h1, h2, table, button, input, select, toast, setBusy, skeleton, confirmDanger } from '../ui.js';
 import { api } from '../api.js';
 import { me } from '../auth.js';
+import { navigate } from '../router.js';
 
 export async function renderCampaignDetail(id){
-  if (!id){ mount(card(h1('Кампания не указана'))); return; }
-  const user = me();
-  const page = el('div',{}, card(h1('Загрузка...')));
-  mount(page);
+    if (!id){ mount(card(h1('Кампания не указана'))); return; }
 
-  try{
-    const campRes = await api.get(`/api/campaigns/${id}`);
-    if (!campRes.ok) throw await campRes.json();
-    const camp = await campRes.json();
+    const user = me();
+    const page = el('div',{}, card(h1('Загрузка…'), el('div',{}, skeleton(3))));
+    mount(page);
 
-    // Members
-    const memRes = await api.get(`/api/campaigns/${id}/members`);
-    const members = memRes.ok ? await memRes.json() : [];
+    try{
+        // Кампания
+        const camp = await api.get(`/api/campaigns/${id}`);
 
-    // Characters
-    const charsRes = await api.get(`/api/campaigns/${id}/characters`);
-    const chars = charsRes.ok ? await charsRes.json() : [];
+        // Права
+        const isGM = (camp.gmId === user?.id);
+        const title = isGM ? `${camp.name} — панель GM` : (camp.name || `Кампания #${id}`);
 
-    // Journal (GM view -> include=all; else players-only)
-    const include = (camp.gmId === user?.id) ? 'all' : '';
-    const jRes = await api.get(`/api/campaigns/${id}/journal${include ? '?include=all':''}`);
-    const journals = jRes.ok ? await jRes.json() : [];
+        // Параллельно тянем участников, персонажей и журнал
+        const [members, chars, journals] = await Promise.all([
+            api.get(`/api/campaigns/${id}/members`).catch(()=>[]),
+            api.get(`/api/campaigns/${id}/characters`).catch(()=>[]),
+            api.get(`/api/campaigns/${id}/journal${isGM ? '?include=all':''}`).catch(()=>[])
+        ]);
 
-    // UI
-    const isGM = (camp.gmId === user?.id);
-    const title = isGM ? `${camp.name} — панель GM` : camp.name;
+        // ===== Шапка =====
+        page.innerHTML='';
+        page.appendChild(card(
+            h1(title),
+            el('div',{}, camp.description || '')
+        ));
 
-    page.innerHTML='';
-    page.appendChild(card(h1(title), el('div',{}, camp.description || '')));
+        // ===== Участники =====
+        const memberRows = (members || []).map(m => [
+            el('strong',{}, m.username || `User #${m.userId}`),
+            m.email || '',
+            m.roleInCampaign || '',
+            isGM ? button('Удалить','btn danger', async (ev)=>{
+                if(!confirmDanger('Удалить участника?')) return;
+                const btn = ev.currentTarget; setBusy(btn,true);
+                try{
+                    await api.del(`/api/campaigns/${id}/members/${m.userId}`);
+                    toast('Удалено');
+                    await renderCampaignDetail(id);
+                }catch(err){
+                    toast(err?.message || 'Ошибка удаления');
+                }finally{ setBusy(btn,false); }
+            }) : ''
+        ]);
 
-    // Members table
-    const memberRows = members.map(m => [
-      el('strong',{}, m.username),
-      m.email || '',
-      m.roleInCampaign,
-      isGM ? button('Удалить','btn danger', async ()=>{
-        const r = await api.del(`/api/campaigns/${id}/members/${m.userId}`);
-        if (r.ok){ toast('Удалено'); renderCampaignDetail(id); }
-        else toast('Ошибка удаления');
-      }) : ''
-    ]);
-    const memberCard = card(
-      h2('Участники'),
-      memberRows.length ? table(['Имя','Email','Роль',''], memberRows) : el('div',{class:'empty'},'Пока никого'),
-    );
+        const memberCard = card(
+            h2('Участники'),
+            memberRows.length
+                ? table(['Имя','Email','Роль',''], memberRows)
+                : el('div',{class:'empty'},'Пока никого')
+        );
 
-    // GM-only: add/update member with PUT
-    if (isGM){
-      const userIdInput = input({ placeholder:'userId UUID' });
-      const roleSel = select({}, [
-        {value:'PLAYER', label:'PLAYER', selected:true},
-        {value:'GM', label:'GM'}
-      ]);
-      const addBtn = button('Добавить / Обновить','btn primary', async ()=>{
-        const body = { roleInCampaign: roleSel.value };
-        const r = await api.put(`/api/campaigns/${id}/members/${userIdInput.value.trim()}`, body);
-        if (r.ok || r.status === 201){ toast('Сохранено'); renderCampaignDetail(id); }
-        else toast('Ошибка');
-      });
-      memberCard.appendChild(el('hr'));
-      memberCard.appendChild(el('div',{class:'toolbar'},[userIdInput, roleSel, addBtn]));
+        // GM-only: форма добавить/обновить участника (PUT идемпотентный)
+        if (isGM){
+            const userIdInput = input({ placeholder:'userId (UUID)', autocomplete:'off' });
+            const roleSel = select({}, [
+                {value:'PLAYER', label:'PLAYER', selected:true},
+                // Назначение второго GM запрещено бизнес-правилом на бэке, но поле оставим для явной попытки
+                {value:'GM', label:'GM'}
+            ]);
+            const addBtn = button('Добавить / Обновить','btn primary');
+            addBtn.addEventListener('click', async ()=>{
+                const uid = userIdInput.value.trim();
+                if(!uid){ toast('Укажите userId'); return; }
+                setBusy(addBtn,true);
+                try{
+                    await api.put(`/api/campaigns/${id}/members/${uid}`, { roleInCampaign: roleSel.value });
+                    toast('Сохранено');
+                    await renderCampaignDetail(id);
+                }catch(err){
+                    toast(err?.message || 'Ошибка сохранения');
+                }finally{ setBusy(addBtn,false); }
+            });
+
+            memberCard.appendChild(el('hr'));
+            memberCard.appendChild(el('div',{class:'toolbar'},[userIdInput, roleSel, addBtn]));
+        }
+        page.appendChild(memberCard);
+
+        // ===== Персонажи =====
+        const charRows = (chars || []).map(c => [
+            el('strong',{}, c.name || `#${c.id}`),
+            c.clazz || '', c.race || '', String(c.level ?? ''),
+            `${c.hp}/${c.maxHp}`,
+            button('Открыть','btn', ()=> navigate('/characters/:id', { id: c.id }))
+        ]);
+        page.appendChild(
+            card(
+                h2('Персонажи'),
+                charRows.length ? table(['Имя','Класс','Раса','Ур.','HP',''], charRows)
+                    : el('div',{class:'empty'},'Нет персонажей')
+            )
+        );
+
+        // ===== Журналы =====
+        const sortedJ = (journals || []).slice().sort((a,b)=>{
+            const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return db - da;
+        });
+        const jRows = sortedJ.map(j => [
+            j.title || '(без названия)',
+            j.type || '',
+            j.visibility || '',
+            j.createdAt ? new Date(j.createdAt).toLocaleString('ru-RU') : ''
+        ]);
+        page.appendChild(
+            card(
+                h2('Журнал'),
+                jRows.length ? table(['Заголовок','Тип','Видимость','Создано'], jRows)
+                    : el('div',{class:'empty'},'Записей нет')
+            )
+        );
+
+    }catch(e){
+        page.innerHTML='';
+        page.appendChild(card(
+            h1('Ошибка'),
+            el('div',{}, e?.message || 'Не удалось загрузить кампанию')
+        ));
     }
-    page.appendChild(memberCard);
-
-    // Characters table
-    const charRows = chars.map(c => [
-      el('strong',{},c.name),
-      c.clazz, c.race, String(c.level),
-      `${c.hp}/${c.maxHp}`,
-      button('Открыть','btn', ()=> location.hash = `/character?id=${c.id}`)
-    ]);
-    page.appendChild(card(h2('Персонажи'), charRows.length ? table(['Имя','Класс','Раса','Ур.','HP',''], charRows) : el('div',{class:'empty'},'Нет персонажей')));
-
-    // Journal table
-    const jRows = journals.map(j => [
-      j.title || '(без названия)',
-      j.type,
-      j.visibility,
-      new Date(j.createdAt).toLocaleString()
-    ]);
-    page.appendChild(card(h2('Журнал'), jRows.length ? table(['Заголовок','Тип','Видимость','Создано'], jRows) : el('div',{class:'empty'},'Записей нет')));
-
-  }catch(e){
-    page.innerHTML='';
-    page.appendChild(card(h1('Ошибка'), el('pre',{class:'code'}, JSON.stringify(e,null,2))));
-  }
 }

@@ -1,14 +1,34 @@
 // src/main/resources/static/js/views/login.js
 import { mount } from '../app.js';
-import { el, card, h1, input, button, toast } from '../ui.js';
+import { el, card, h1, input, button, toast, setBusy } from '../ui.js';
 import { login } from '../auth.js';
 import { navigate } from '../router.js';
 
 export function renderLogin() {
-    const u = input({ placeholder: 'Логин или Email', autocomplete: 'username' });
-    const p = input({ placeholder: 'Пароль', type: 'password', autocomplete: 'current-password' });
+    const u = input({ placeholder: 'Логин или Email', name:'username', autocomplete: 'username', required:'required' });
+    const p = input({ placeholder: 'Пароль', type: 'password', name:'password', autocomplete: 'current-password', required:'required' });
 
-    const submit = button('Войти', 'btn primary', onSubmit);
+    const submit = button('Войти', 'btn primary');
+
+    async function onSubmit() {
+        if (submit.disabled) return;
+        const usernameOrEmail = (u.value || '').trim();
+        const password = p.value || '';
+        if (!usernameOrEmail || !password) {
+            toast('Заполните логин и пароль');
+            return;
+        }
+        setBusy(submit, true);
+        try {
+            await login(usernameOrEmail, password);
+            toast('Успешный вход');
+            navigate('/'); // Домой, там автоподгрузка
+        } catch (err) {
+            toast((err && err.message) || 'Ошибка входа');
+        } finally {
+            setBusy(submit, false);
+        }
+    }
 
     // отправка по Enter
     [u, p].forEach(ctrl => {
@@ -20,37 +40,21 @@ export function renderLogin() {
         });
     });
 
-    async function onSubmit() {
-        if (submit.disabled) return;
-        submit.disabled = true;
-        const origText = submit.textContent;
-        submit.textContent = 'Входим…';
-        try {
-            const usernameOrEmail = (u.value || '').trim();
-            const password = p.value || '';
-            if (!usernameOrEmail || !password) {
-                throw new Error('Заполните логин и пароль');
-            }
-            await login(usernameOrEmail, password);
-            toast('Успешный вход');
-            navigate('/'); // на "Главная" — там автоподгрузка данных
-        } catch (err) {
-            toast((err && err.message) || 'Ошибка входа');
-        } finally {
-            submit.disabled = false;
-            submit.textContent = origText;
-        }
-    }
+    // кнопка сабмита
+    submit.addEventListener('click', onSubmit);
 
     const box = card(
         h1('Вход'),
         el('div', {}, [u]),
         el('div', {}, [p]),
         el('div', { class: 'toolbar' }, [
-            submit,
-            // Кнопку "Регистрация" внутри формы убрали — она есть в правом верхнем углу навигации
+            submit
+            // Кнопка "Регистрация" есть в верхней навигации
         ])
     );
 
     mount(el('div', {}, box));
+
+    // автофокус
+    setTimeout(() => u.focus(), 0);
 }

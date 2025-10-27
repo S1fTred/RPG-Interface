@@ -35,11 +35,13 @@ html,body { margin:0; padding:0; background:var(--bg); color:var(--text); }
 .btn.primary { background:var(--primary); border-color:transparent; }
 .btn.primary:hover{ background:var(--primary-2); }
 .btn.ghost { background:transparent; }
+.btn.link { background:transparent; border-color:transparent; padding:8px 10px; }
 
-input {
+input, select, textarea {
     width:100%; margin:6px 0; padding:10px 12px;
     border-radius:10px; border:1px solid var(--border); background:#0f1624; color:var(--text);
 }
+textarea { min-height:120px; resize:vertical; }
 
 .view.hidden { display:none; }
 
@@ -52,3 +54,37 @@ input {
 .hidden { display:none; }
 
 .footer { opacity:.7; text-align:center; padding:24px 0 40px; font-size:14px; border-top:1px solid var(--border); }
+
+/* ====== NEW: внутреннее меню и раскладки ====== */
+.nav { display:flex; gap:.5rem; margin: 8px 0 16px; }
+.inline-form { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+.stack { display:flex; flex-direction:column; gap:.5rem; }
+.stack.small input, .stack.small textarea, .stack.small select { max-width: 360px; }
+
+.cards { display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:12px; }
+.grid-2 { display:grid; grid-template-columns:1fr; gap:12px; }
+@media (min-width: 900px) { .grid-2 { grid-template-columns:1fr 1fr; } }
+
+.kv { display:grid; grid-template-columns: 140px 1fr; gap:.25rem .75rem; }
+.attrs { display:grid; grid-template-columns: repeat(3, 1fr); gap:.25rem; }
+@media (min-width: 800px) { .attrs { grid-template-columns: repeat(6, 1fr); } }
+.attrs-read { display:grid; grid-template-columns: repeat(3, minmax(6rem, 1fr)); gap:.25rem; }
+
+.list .row { border:1px solid var(--border); border-radius:10px; padding:.75rem; margin-bottom:.5rem; background:#101728; }
+
+/* Spacing helpers */
+.mt-s{ margin-top:.5rem }
+.mt-l{ margin-top:1.25rem }
+.ml{ margin-left:.75rem }
+.right{ margin-left:auto }
+
+/* States */
+.btn.danger { background:rgba(255,92,92,.12); border-color:rgba(255,92,92,.35); color:#ffd6d6; }
+.btn.danger:hover { background:rgba(255,92,92,.2); }
+
+/* Skeleton loader */
+.skeleton { background:linear-gradient(90deg,#1a2235,#202a42,#1a2235); background-size:200% 100%; animation:sk 1.2s infinite; height:1rem; border-radius:.25rem }
+@keyframes sk { 0%{background-position:0 0} 100%{background-position:200% 0} }
+
+/* Toasts */
+.toast { position:fixed; bottom:1rem; right:1rem; background:#111827; border:1px solid var(--border); color:#e5e7eb; padding:.6rem .8rem; border-radius:.5rem; opacity:.98; box-shadow:0 6px 24px rgba(0,0,0,.35); z-index:1000; }
