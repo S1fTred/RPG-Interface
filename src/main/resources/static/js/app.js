@@ -1,4 +1,4 @@
-// js/app.js — минимальная логика домашней страницы (без роутера)
+// js/app.js
 
 import { api } from './api.js';
 import { me } from './auth.js';
