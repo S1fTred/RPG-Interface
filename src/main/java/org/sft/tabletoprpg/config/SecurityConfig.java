@@ -59,11 +59,12 @@ public class SecurityConfig {
                     "/",
                     "/index.html",
                     "/favicon.ico",
-                    "/css/**",           // новый путь для стилей
-                    "/styles.css",       // старый одиночный файл стилей
-                    "/js/**",
+                    // Статика SPA (конкретные файлы и каталоги без использования **.ext, т.к. PathPattern не допускает хвост после **)
+                    "/styles.css",
+                    "/store.js", "/api.js", "/router.js", "/app.js",
+                    "/views/**",
                     "/assets/**",
-                    "/**/*.png", "/**/*.jpg", "/**/*.svg", "/**/*.woff", "/**/*.woff2"
+                    "/css/**", "/js/**"
                 ).permitAll()
 
                 // публичные эндпоинты

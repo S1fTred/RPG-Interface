@@ -1,7 +1,6 @@
 package org.sft.tabletoprpg.repo;
 
 import org.sft.tabletoprpg.domain.CampaignMember;
-import org.sft.tabletoprpg.domain.CampaignRole;
 import org.sft.tabletoprpg.domain.compositeKeys.CampaignMemberId;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -16,5 +15,6 @@ public interface CampaignMemberRepository extends JpaRepository<CampaignMember, 
     Optional<CampaignMember> findByCampaign_IdAndUser_Id(UUID campaignId, UUID userId);
     boolean existsByCampaign_IdAndUser_Id(UUID campaignId, UUID userId);
     void deleteByCampaign_IdAndUser_Id(UUID campaignId, UUID userId);
+    
 
 }
