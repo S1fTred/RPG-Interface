@@ -27,6 +27,13 @@ export function setAuth({ access, refresh, user }) {
     else localStorage.removeItem(KEY_USER);
 }
 
+// ⬇️ Новое: безопасно обновить только user без трогания токенов
+export function setUser(user) {
+    currentUser = user || null;
+    if (user) localStorage.setItem(KEY_USER, JSON.stringify(user));
+    else localStorage.removeItem(KEY_USER);
+}
+
 export function getUser() {
     if (currentUser) return currentUser;
     const raw = localStorage.getItem(KEY_USER);
@@ -57,10 +64,7 @@ export async function restoreSession() {
         const data = await res.json();
         accessToken = data.accessToken;
         refreshToken = data.refreshToken || refreshToken;
-        if (data.user) {
-            currentUser = data.user;
-            localStorage.setItem(KEY_USER, JSON.stringify(data.user));
-        }
+        if (data.user) setUser(data.user);
         return accessToken;
     } catch {
         logout();
