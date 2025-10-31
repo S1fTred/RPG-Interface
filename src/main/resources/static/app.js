@@ -9,8 +9,11 @@
       if (refreshToken) auth.refreshToken = refreshToken;
       if (accessToken) {
         const payload = decodeJwt(accessToken);
-        auth.user = payload && (payload.username || payload.sub) ? { id: payload.id, username: payload.username || payload.sub, email: payload.email } : null;
-        auth.roles = Array.isArray(payload && payload.roles) ? payload.roles : (payload && typeof payload.role === 'string' ? [payload.role] : []);
+        auth.user = payload && (payload.username || payload.sub || payload.userId)
+          ? { id: payload.userId || payload.id, username: payload.username || payload.sub, email: payload.email }
+          : null;
+        const raw = Array.isArray(payload && payload.roles) ? payload.roles : (payload && typeof payload.role === 'string' ? [payload.role] : []);
+        auth.roles = normalizeRoles(raw);
       }
     },
     clear() { auth.accessToken = null; auth.refreshToken = null; auth.user = null; auth.roles = []; }
@@ -36,6 +39,24 @@
     if (parts.length < 2) return null;
     const json = base64UrlDecode(parts[1]);
     try { return JSON.parse(json); } catch { return null; }
+  }
+
+  function normalizeRoles(list) {
+    if (!Array.isArray(list)) return [];
+    const out = new Set();
+    for (const r of list) {
+      if (!r) continue;
+      const up = String(r).toUpperCase();
+      // strip any prefix before last underscore: ROLE_ADMIN, РОЛЬ_ADMIN, etc.
+      const simple = up.includes('_') ? up.substring(up.lastIndexOf('_') + 1) : up;
+      out.add(simple);
+      // also keep GM/GAME_MASTER synonyms
+      if (simple === 'GM') out.add('GAME_MASTER');
+      if (simple === 'GAME' || simple === 'GAME-MASTER' || simple === 'GAME MASTER' || simple === 'GAME_MASTER') {
+        out.add('GM'); out.add('GAME_MASTER');
+      }
+    }
+    return Array.from(out);
   }
 
   function setMessage(el, text, type = "") {
@@ -164,9 +185,9 @@
       name.textContent = (auth.user && auth.user.username) || 'User';
       rolesEl.textContent = auth.roles.join(', ') || 'PLAYER';
       // Toggle nav links by roles
-      const has = r => auth.roles.includes(r) || auth.roles.includes(`ROLE_${r}`);
+      const has = r => auth.roles.includes(r);
       qs('#link-items').hidden = !has('ADMIN');
-      qs('#link-campaigns').hidden = !has('GAME_MASTER') && !has('GM');
+      qs('#link-campaigns').hidden = false; // everyone can see campaigns they participate in
       qs('#link-characters').hidden = false; // everyone can see their characters
       qs('#link-journal').hidden = false;
     } else {
@@ -191,6 +212,89 @@
     if (outlet) outlet.innerHTML = html;
   }
 
+  function renderList(items, emptyText, mapper) {
+    if (!Array.isArray(items) || items.length === 0) {
+      return `<p class="muted">${emptyText}</p>`;
+    }
+    const rows = items.map(mapper).join('');
+    return `<ul class="list">${rows}</ul>`;
+  }
+
+  async function showCharacters() {
+    const userId = auth.user && auth.user.id;
+    if (!userId) { setRouteContent('<p>Cannot determine current user.</p>'); return; }
+    setRouteContent('<h2>Characters</h2><p class="muted">Loading…</p>');
+    try {
+      const data = await api(`/api/characters/by-owner-id/${encodeURIComponent(userId)}`);
+      const html = `
+        <h2>Characters</h2>
+        ${renderList(data, 'You have no characters yet.', (c) => (
+          `<li class="list-item"><div class="list-title">${escapeHtml(c.name || 'Unnamed')}</div>
+            <div class="list-sub">HP: ${c.hp ?? '-'} • Campaign: ${c.campaignName || c.campaignId || '-'}</div>
+          </li>`
+        ))}
+      `;
+      setRouteContent(html);
+    } catch (e) {
+      setRouteContent(`<h2>Characters</h2><p class="err">${escapeHtml(e.message || 'Failed to load')}</p>`);
+    }
+  }
+
+  async function showCampaigns() {
+    setRouteContent('<h2>Campaigns</h2><p class="muted">Loading…</p>');
+    try {
+      const data = await api('/api/campaigns/participating');
+      const html = `
+        <h2>Campaigns</h2>
+        ${renderList(data, 'You are not a member of any campaigns yet.', (c) => (
+          `<li class="list-item"><div class="list-title">${escapeHtml(c.name || 'Unnamed')}</div>
+            <div class="list-sub">GM: ${c.gmId || '-'} • Created: ${c.createdAt || '-'}</div>
+          </li>`
+        ))}
+      `;
+      setRouteContent(html);
+    } catch (e) {
+      setRouteContent(`<h2>Campaigns</h2><p class="err">${escapeHtml(e.message || 'Failed to load')}</p>`);
+    }
+  }
+
+  async function showItems() {
+    const searchBox = `
+      <div class="toolbar"><input id="item-q" placeholder="Search items by name…" /><button class="btn" id="item-search">Search</button></div>
+      <div id="item-results"><p class="muted">Enter a query and press Search.</p></div>
+    `;
+    setRouteContent(`<h2>Items (Admin)</h2>${searchBox}`);
+
+    async function runSearch() {
+      const q = (qs('#item-q').value || '').trim();
+      if (!q) { qs('#item-results').innerHTML = '<p class="muted">Type something to search.</p>'; return; }
+      qs('#item-results').innerHTML = '<p class="muted">Searching…</p>';
+      try {
+        const data = await api(`/api/items?query=${encodeURIComponent(q)}`);
+        const html = renderList(data, 'No items found.', (it) => (
+          `<li class="list-item"><div class="list-title">${escapeHtml(it.name || 'Unnamed')}</div>
+            <div class="list-sub">${escapeHtml(it.description || '')}</div>
+          </li>`
+        ));
+        qs('#item-results').innerHTML = html;
+      } catch (e) {
+        qs('#item-results').innerHTML = `<p class="err">${escapeHtml(e.message || 'Search failed')}</p>`;
+      }
+    }
+
+    qs('#item-search').addEventListener('click', runSearch);
+    qs('#item-q').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') runSearch(); });
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function router() {
     const route = location.hash.slice(1) || '/';
     if (!auth.accessToken) {
@@ -199,13 +303,13 @@
     }
     switch (route) {
       case '/items':
-        setRouteContent('<h2>Items (Admin)</h2><p>Admin items management UI will appear here.</p>');
+        showItems();
         break;
       case '/campaigns':
-        setRouteContent('<h2>Campaigns (GM)</h2><p>GM campaign dashboard will appear here.</p>');
+        showCampaigns();
         break;
       case '/characters':
-        setRouteContent('<h2>Characters</h2><p>Your characters UI will appear here.</p>');
+        showCharacters();
         break;
       case '/journal':
         setRouteContent('<h2>Journal</h2><p>Campaign journal will appear here.</p>');
@@ -219,7 +323,7 @@
   function onAuthenticated() {
     updateLoggedInUI();
     // Choose default landing based on roles
-    const has = r => auth.roles.includes(r) || auth.roles.includes(`ROLE_${r}`);
+    const has = r => auth.roles.includes(r);
     if (has('ADMIN')) location.hash = '#/items';
     else if (has('GAME_MASTER') || has('GM')) location.hash = '#/campaigns';
     else location.hash = '#/characters';

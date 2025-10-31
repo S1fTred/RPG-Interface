@@ -69,6 +69,14 @@ public class CampaignController {
         return ResponseEntity.ok(campaignService.findMyCampaigns(me.getId()));
     }
 
+    /**
+     * Campaigns where current user participates (PLAYER or GM).
+     */
+    @GetMapping("/participating")
+    public ResponseEntity<List<CampaignDto>> listParticipating(@AuthenticationPrincipal UserPrincipal me) {
+        return ResponseEntity.ok(campaignService.findCampaignsByMember(me.getId()));
+    }
+
     @GetMapping("/list-by-gm")
     public ResponseEntity<List<CampaignDto>> listByGmLegacy(@RequestParam("gmId") UUID gmId) {
         return ResponseEntity.ok(campaignService.findCampaignsByGm_Id(gmId));

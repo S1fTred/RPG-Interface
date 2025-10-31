@@ -43,6 +43,13 @@ body{
 .nav-link:hover{ border-color:var(--primary); }
 .outlet{ min-height:160px; }
 
+.muted{ color: var(--muted); }
+.list{ list-style:none; padding:0; margin:12px 0; display:grid; gap:8px; }
+.list-item{ padding:12px; border:1px solid var(--border); border-radius:8px; background:#0c121a; }
+.list-title{ font-weight:600; margin-bottom:4px; }
+.list-sub{ color:var(--muted); font-size:12px; }
+.toolbar{ display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+
 .field{ display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
 label{ color:var(--muted); font-size:13px; }
 input{
