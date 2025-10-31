@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tabletop RPG Interface</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="icon" href="data:,">
+    <meta name="color-scheme" content="light dark">
+</head>
+<body>
+    <main id="app">
+        <section class="welcome" id="welcome-view">
+            <div class="brand">
+                <h1>Tabletop RPG Interface</h1>
+                <p class="subtitle">Play, manage, and adventure together</p>
+            </div>
+
+            <div class="auth-panels">
+                <div class="panel" id="login-panel">
+                    <h2>Sign in</h2>
+                    <form id="login-form" novalidate>
+                        <div class="field">
+                            <label for="login-username">Username or Email</label>
+                            <input id="login-username" name="username" type="text" autocomplete="username" required>
+                        </div>
+                        <div class="field">
+                            <label for="login-password">Password</label>
+                            <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+                        </div>
+                        <button type="submit" class="btn primary">Sign in</button>
+                        <div class="form-message" id="login-message" role="alert" aria-live="polite"></div>
+                    </form>
+                </div>
+
+                <div class="panel" id="register-panel">
+                    <h2>Create account</h2>
+                    <form id="register-form" novalidate>
+                        <div class="field">
+                            <label for="reg-username">Username</label>
+                            <input id="reg-username" name="username" type="text" autocomplete="username" required>
+                        </div>
+                        <div class="field">
+                            <label for="reg-email">Email</label>
+                            <input id="reg-email" name="email" type="email" autocomplete="email" required>
+                        </div>
+                        <div class="field">
+                            <label for="reg-password">Password</label>
+                            <input id="reg-password" name="password" type="password" autocomplete="new-password" required minlength="6">
+                        </div>
+                        <button type="submit" class="btn">Register</button>
+                        <div class="form-message" id="register-message" role="alert" aria-live="polite"></div>
+                    </form>
+                </div>
+            </div>
+        </section>
+        <section class="dashboard" id="dashboard-view" hidden>
+            <div class="brand">
+                <h1>Welcome, <span id="user-name">Adventurer</span></h1>
+                <p class="subtitle">Your role: <span id="user-roles"></span></p>
+            </div>
+            <nav class="nav">
+                <a href="#/items" id="link-items" class="nav-link" hidden>Items (Admin)</a>
+                <a href="#/campaigns" id="link-campaigns" class="nav-link" hidden>Campaigns (GM)</a>
+                <a href="#/characters" id="link-characters" class="nav-link" hidden>Characters</a>
+                <a href="#/journal" id="link-journal" class="nav-link" hidden>Journal</a>
+                <button id="btn-logout" class="btn" style="margin-left:auto;">Log out</button>
+            </nav>
+            <div id="route-outlet" class="outlet panel" aria-live="polite"></div>
+        </section>
+    </main>
+
+    <script src="/app.js" defer></script>
+    <noscript>This app requires JavaScript to run.</noscript>
+    <footer class="footer">© 2025 Tabletop RPG Interface</footer>
+    
+</body>
+</html>
+
+
