@@ -1,7 +1,6 @@
 package org.sft.tabletoprpg.service.dto.character;
 
 import lombok.Builder;
-import org.sft.tabletoprpg.domain.Atributes;
 
 import java.util.UUID;
 
@@ -14,7 +13,7 @@ public record CharacterDto(
         int level,
         int hp,
         int maxHp,
-        Atributes atributes,
+        AttributesDto attributes,
         UUID ownerId,
         UUID campaignId
 ) {}

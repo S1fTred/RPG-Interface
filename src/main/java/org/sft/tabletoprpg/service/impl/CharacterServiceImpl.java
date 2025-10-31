@@ -261,7 +261,7 @@ public class CharacterServiceImpl implements CharacterService {
             .level(character.getLevel())
             .hp(character.getHp())
             .maxHp(character.getMaxHp())
-            .atributes(character.getAtributes())
+            .attributes(mapAttributesDto(character.getAtributes()))
             .build();
     }
 
@@ -275,5 +275,17 @@ public class CharacterServiceImpl implements CharacterService {
             .attr_wis(dto.wisdom())
             .attr_cha(dto.charisma())
             .build();
+    }
+
+    private AttributesDto mapAttributesDto(Atributes a) {
+        if (a == null) return null;
+        return new AttributesDto(
+            a.getAttr_str(),
+            a.getAttr_agi(),
+            a.getAttr_stam(),
+            a.getAttr_int(),
+            a.getAttr_wis(),
+            a.getAttr_cha()
+        );
     }
 }

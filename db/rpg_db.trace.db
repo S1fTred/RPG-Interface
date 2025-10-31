@@ -248,3 +248,7 @@ SELECT name FROM items WHERE id = "32ef7ad2-93f7-4baa-898f-211779520056" [42122-
 	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:658)
 	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
 	at java.base/java.lang.Thread.run(Thread.java:1474)
+2025-10-31 18:30:35.976153+03:00 jdbc[13]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Синтаксическая ошибка в выражении SQL "SELECT * FROM campaign_members WHERE user_id = 93[*]a7fe80-3894-4c0c-980e-760aa18c8c4d"
+Syntax error in SQL statement "SELECT * FROM campaign_members WHERE user_id = 93[*]a7fe80-3894-4c0c-980e-760aa18c8c4d"; SQL statement:
+SELECT * FROM campaign_members WHERE user_id = 93a7fe80-3894-4c0c-980e-760aa18c8c4d [42000-232]

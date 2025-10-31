@@ -108,6 +108,12 @@ public class ItemController {
         return ResponseEntity.ok(itemService.getItem(itemId));
     }
 
+    // Canonical: GET /api/items (list all)
+    @GetMapping
+    public ResponseEntity<List<ItemDto>> listAll() {
+        return ResponseEntity.ok(itemService.findByName(null));
+    }
+
     // Legacy: GET /api/items/items-by-name-contains?query=...
     @GetMapping("/items-by-name-contains")
     public ResponseEntity<List<ItemDto>> findItemsByNameContainsLegacy(

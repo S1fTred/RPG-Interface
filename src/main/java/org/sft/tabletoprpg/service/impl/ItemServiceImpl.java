@@ -136,9 +136,10 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     public List<ItemDto> findByName(String name) {
-        return  itemRepository.findAll()
-            .stream()
-            .filter(item -> name == null || item.getName().toLowerCase().contains(name.toLowerCase()))
+        if (name == null || name.isBlank()) {
+            return itemRepository.findAll().stream().map(this::toDto).toList();
+        }
+        return itemRepository.findByNameContainingIgnoreCase(name.trim()).stream()
             .map(this::toDto)
             .toList();
     }

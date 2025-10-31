@@ -25,7 +25,7 @@ public class UserPrincipal implements UserDetails {
 
     public static UserPrincipal from(org.sft.tabletoprpg.domain.User u) {
         var authorities = u.getRoles().stream()
-            .map(r -> new SimpleGrantedAuthority("РОЛЬ_" + r.name()))
+            .map(r -> new SimpleGrantedAuthority("ROLE_" + r.name()))
             .toList();
         return new UserPrincipal(u.getId(), u.getUsername(), u.getPasswordHash(), authorities);
     }
