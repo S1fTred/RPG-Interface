@@ -22,5 +22,6 @@ public interface CampaignService {
     List<CampaignDto> findMyCampaigns(UUID gmId);
     List<CampaignDto> findCampaignsByGm_Id(UUID gmId);
     CampaignDto findCampaignById(UUID id);
+    public List<CampaignDto> findCampaignsByMember(UUID userId);
 
 }

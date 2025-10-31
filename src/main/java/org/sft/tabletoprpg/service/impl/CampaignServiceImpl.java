@@ -15,8 +15,9 @@ import org.sft.tabletoprpg.service.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,8 @@ public class CampaignServiceImpl implements CampaignService {
     private final UserRepository userRepository;
     private final CampaignMemberRepository campaignMemberRepository;
     private final CharacterRepository characterRepository;
+
+    /* ============================ CREATE / UPDATE / DELETE ============================ */
 
     @Transactional
     @Override
@@ -94,8 +97,8 @@ public class CampaignServiceImpl implements CampaignService {
         campaignRepository.delete(campaign);
     }
 
+    /* ============================ MEMBERS (idempotent) ============================ */
 
-    // ===== Members (idempotent) =====
     @Transactional
     @Override
     public CampaignRoleResult upsertMember(UUID campaignId, UUID userId, CampaignRole role, UUID requesterId) {
@@ -130,7 +133,7 @@ public class CampaignServiceImpl implements CampaignService {
 
             return new CampaignRoleResult(toMemberDto(cm), true); // created = true
         } else {
-            // если идемпотентный PUT без изменения роли — просто вернуть 200 OK
+            // идемпотентный PUT: если роль та же — ничего не меняем
             if (existing.getRoleInCampaign() != targetRole) {
                 existing.setRoleInCampaign(targetRole);
                 campaignMemberRepository.save(existing);
@@ -199,7 +202,7 @@ public class CampaignServiceImpl implements CampaignService {
         campaignMemberRepository.delete(member);
     }
 
-    // ===== Reads =====
+    /* ============================ READS ============================ */
 
     @Override
     public List<CampaignDto> findMyCampaigns(UUID gmId) {
@@ -208,7 +211,36 @@ public class CampaignServiceImpl implements CampaignService {
 
     @Override
     public List<CampaignDto> findCampaignsByGm_Id(UUID gmId) {
-        return campaignRepository.findByGm_Id(gmId).stream()
+        // если у репозитория есть метод с сортировкой — используем его, иначе отсортируем вручную
+        List<Campaign> list = campaignRepository.findByGm_Id(gmId);
+        return list.stream()
+            .sorted(Comparator.comparing(Campaign::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+            .map(this::toDto)
+            .toList();
+    }
+
+    /** НОВОЕ: кампании, где пользователь УЧАСТНИК (PLAYER или GM). */
+    @Override
+    public List<CampaignDto> findCampaignsByMember(UUID userId) {
+        if (userId == null) return List.of();
+
+        // Требуется метод в репозитории членства: List<CampaignMember> findByUser_Id(UUID userId);
+        List<CampaignMember> memberships = campaignMemberRepository.findByUser_Id(userId);
+
+        // Соберём уникальные кампании по id, сохраним порядок добавления,
+        // затем отсортируем по createdAt (desc) перед маппингом в DTO.
+        Map<UUID, Campaign> byId = memberships.stream()
+            .map(CampaignMember::getCampaign)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toMap(
+                Campaign::getId,
+                Function.identity(),
+                (a, b) -> a,
+                LinkedHashMap::new
+            ));
+
+        return byId.values().stream()
+            .sorted(Comparator.comparing(Campaign::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
             .map(this::toDto)
             .toList();
     }
@@ -220,7 +252,8 @@ public class CampaignServiceImpl implements CampaignService {
         return toDto(campaign);
     }
 
-    // --------------------------- МАППЕРЫ ------------------------------------- //
+    /* ============================ МАППЕРЫ ============================ */
+
     private Campaign toEntity(CampaignCreateRequest req) {
         return Campaign.builder()
             .name(req.name())
