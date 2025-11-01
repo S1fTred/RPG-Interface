@@ -66,6 +66,90 @@
     if (type) el.classList.add(type);
   }
 
+  function confirmModal(title, message) {
+    return new Promise((resolve) => {
+      const overlay = qs('#modal-overlay');
+      const titleEl = qs('#modal-title');
+      const messageEl = qs('#modal-message');
+      const confirmBtn = qs('#modal-confirm');
+      const cancelBtn = qs('#modal-cancel');
+      
+      titleEl.textContent = title || 'Confirm';
+      messageEl.innerHTML = message || 'Are you sure?';
+      
+      confirmBtn.textContent = 'Confirm';
+      confirmBtn.hidden = false;
+      cancelBtn.hidden = false;
+      confirmBtn.classList.add('primary');
+      confirmBtn.classList.remove('danger');
+      
+      const cleanup = () => {
+        overlay.hidden = true;
+        confirmBtn.onclick = null;
+        cancelBtn.onclick = null;
+        overlay.onclick = null;
+      };
+      
+      confirmBtn.onclick = () => {
+        cleanup();
+        resolve(true);
+      };
+      
+      cancelBtn.onclick = () => {
+        cleanup();
+        resolve(false);
+      };
+      
+      overlay.onclick = (ev) => {
+        if (ev.target === overlay) {
+          cleanup();
+          resolve(false);
+        }
+      };
+      
+      overlay.hidden = false;
+    });
+  }
+
+  function showErrorModal(title, message) {
+    return new Promise((resolve) => {
+      const overlay = qs('#modal-overlay');
+      const titleEl = qs('#modal-title');
+      const messageEl = qs('#modal-message');
+      const confirmBtn = qs('#modal-confirm');
+      const cancelBtn = qs('#modal-cancel');
+      
+      titleEl.textContent = title || 'Error';
+      messageEl.innerHTML = message || 'An error occurred';
+      
+      confirmBtn.textContent = 'OK';
+      confirmBtn.hidden = false;
+      cancelBtn.hidden = true;
+      confirmBtn.classList.remove('primary');
+      confirmBtn.classList.add('danger');
+      
+      const cleanup = () => {
+        overlay.hidden = true;
+        confirmBtn.onclick = null;
+        overlay.onclick = null;
+      };
+      
+      confirmBtn.onclick = () => {
+        cleanup();
+        resolve();
+      };
+      
+      overlay.onclick = (ev) => {
+        if (ev.target === overlay) {
+          cleanup();
+          resolve();
+        }
+      };
+      
+      overlay.hidden = false;
+    });
+  }
+
   async function api(path, options = {}, retry = true) {
     const headers = new Headers(options.headers || {});
     if (!headers.has("Content-Type") && options.body) headers.set("Content-Type", "application/json");
@@ -266,11 +350,16 @@
     `;
     setRouteContent(layout);
 
-    async function loadCampaigns() {
+    async function loadCampaigns(charactersList) {
       try {
         const campaigns = await api('/api/campaigns/participating');
+        const characters = charactersList || await api(`/api/characters/by-owner-id/${encodeURIComponent(userId)}`);
+        const campaignsWithChar = new Set((characters || []).map(ch => ch.campaignId));
         const sel = qs('#ch-campaign');
-        sel.innerHTML = '<option value="">Campaign…</option>' + (campaigns || []).map(c => `<option value="${c.id}">${escapeHtml(c.name || c.id)}</option>`).join('');
+        sel.innerHTML = '<option value="">Campaign…</option>' + (campaigns || []).map(c => {
+          const hasChar = campaignsWithChar.has(c.id);
+          return `<option value="${c.id}" ${hasChar ? 'disabled' : ''}>${escapeHtml(c.name || c.id)}${hasChar ? ' (already has character)' : ''}</option>`;
+        }).join('');
       } catch {}
     }
 
@@ -302,18 +391,35 @@
         await api(`/api/characters/crt/${encodeURIComponent(campaignId)}`, { method: 'POST', body: JSON.stringify(payload) });
         setMessage(msg, 'Character created', 'ok');
         await runList();
+        await loadCampaigns(); // перезагрузить список кампаний с учетом нового персонажа
+        qs('#ch-name').value = '';
+        qs('#ch-class').value = '';
+        qs('#ch-race').value = '';
+        qs('#ch-level').value = '';
+        qs('#ch-maxhp').value = '';
+        qs('#ch-hp').value = '';
+        qs('#ch-str').value = '';
+        qs('#ch-dex').value = '';
+        qs('#ch-con').value = '';
+        qs('#ch-int').value = '';
+        qs('#ch-wis').value = '';
+        qs('#ch-cha').value = '';
+        qs('#ch-campaign').value = '';
       } catch (e) {
-        setMessage(msg, e.message || 'Create failed', 'err');
+        const errorMsg = e.message || 'Create failed';
+        setMessage(msg, errorMsg.includes('уже есть персонаж') || errorMsg.includes('already has character') 
+          ? 'В этой кампании у вас уже есть персонаж. Один игрок может иметь только одного персонажа в кампании.'
+          : errorMsg, 'err');
       }
     }
 
     function renderCharItem(c) {
       return `
-        <li class="list-item" data-id="${c.id}">
+        <li class="list-item" data-id="${c.id}" data-campaign-id="${c.campaignId || ''}">
           <div class="row-between">
             <div>
               <div class="list-title">${escapeHtml(c.name || 'Unnamed')} <span class="list-sub">[${escapeHtml(c.race||'')}/${escapeHtml(c.clazz||'')}]</span></div>
-              <div class="list-sub">Level: ${c.level} • HP: ${c.hp}/${c.maxHp} • Campaign: ${c.campaignId || '-'}</div>
+              <div class="list-sub">Level: ${c.level} • HP: ${c.hp}/${c.maxHp} • Campaign: ${c.campaignId ? escapeHtml(c.campaignName || c.campaignId) : 'None'}</div>
               <div class="list-sub">STR ${c.attributes?.strength ?? '-'} | DEX ${c.attributes?.dexterity ?? '-'} | CON ${c.attributes?.constitution ?? '-'} | INT ${c.attributes?.intelligence ?? '-'} | WIS ${c.attributes?.wisdom ?? '-'} | CHA ${c.attributes?.charisma ?? '-'}</div>
             </div>
             <div class="actions">
@@ -329,8 +435,10 @@
       try {
         const data = await api(`/api/characters/by-owner-id/${encodeURIComponent(userId)}`);
         qs('#char-results').innerHTML = renderList(data, 'You have no characters yet.', renderCharItem);
+        return data;
       } catch (e) {
         qs('#char-results').innerHTML = `<p class="err">${escapeHtml(e.message || 'Failed to load')}</p>`;
+        return [];
       }
     }
 
@@ -369,26 +477,74 @@
 
     async function saveEdit(li) {
       const id = li.getAttribute('data-id');
+      
+      // Валидация на фронтенде
+      const name = (li.querySelector('.ed-name').value || '').trim();
+      const str = toInt(li.querySelector('.ed-str').value, null);
+      const dex = toInt(li.querySelector('.ed-dex').value, null);
+      const con = toInt(li.querySelector('.ed-con').value, null);
+      const int = toInt(li.querySelector('.ed-int').value, null);
+      const wis = toInt(li.querySelector('.ed-wis').value, null);
+      const cha = toInt(li.querySelector('.ed-cha').value, null);
+      
+      const errors = [];
+      if (!name) errors.push('Name is required');
+      if (str === null || str < 1 || str > 30) errors.push('Strength must be between 1 and 30');
+      if (dex === null || dex < 1 || dex > 30) errors.push('Dexterity must be between 1 and 30');
+      if (con === null || con < 1 || con > 30) errors.push('Constitution must be between 1 and 30');
+      if (int === null || int < 1 || int > 30) errors.push('Intelligence must be between 1 and 30');
+      if (wis === null || wis < 1 || wis > 30) errors.push('Wisdom must be between 1 and 30');
+      if (cha === null || cha < 1 || cha > 30) errors.push('Charisma must be between 1 and 30');
+      
+      if (errors.length > 0) {
+        await showErrorModal('Validation Error', errors.map(e => `• ${e}`).join('<br>'));
+        return;
+      }
+      
       const body = {
-        name: (li.querySelector('.ed-name').value || '').trim() || null,
+        name: name || null,
         clazz: (li.querySelector('.ed-class').value || '').trim() || null,
         race: (li.querySelector('.ed-race').value || '').trim() || null,
         level: toInt(li.querySelector('.ed-level').value, null),
         maxHp: toInt(li.querySelector('.ed-maxhp').value, null),
         attributes: {
-          strength: toInt(li.querySelector('.ed-str').value, null) ?? 10,
-          dexterity: toInt(li.querySelector('.ed-dex').value, null) ?? 10,
-          constitution: toInt(li.querySelector('.ed-con').value, null) ?? 10,
-          intelligence: toInt(li.querySelector('.ed-int').value, null) ?? 10,
-          wisdom: toInt(li.querySelector('.ed-wis').value, null) ?? 10,
-          charisma: toInt(li.querySelector('.ed-cha').value, null) ?? 10,
+          strength: str,
+          dexterity: dex,
+          constitution: con,
+          intelligence: int,
+          wisdom: wis,
+          charisma: cha,
         }
       };
+      
       try {
         await api(`/api/characters/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) });
         await runList();
       } catch (e) {
-        alert(e.message || 'Update failed');
+        let errorMsg = e.message || 'Update failed';
+        
+        // Обработка ошибок валидации с сервера
+        if (e.data && typeof e.data === 'object') {
+          if (e.data.message) {
+            errorMsg = e.data.message;
+          } else if (Array.isArray(e.data.errors)) {
+            errorMsg = e.data.errors.map(err => err.field ? `${err.field}: ${err.message || err.defaultMessage}` : (err.message || err.defaultMessage)).join('<br>• ') || errorMsg;
+            if (errorMsg !== e.message) errorMsg = '• ' + errorMsg;
+          } else if (e.data.errors && typeof e.data.errors === 'object') {
+            const errList = Object.entries(e.data.errors).map(([field, msgs]) => {
+              const msgList = Array.isArray(msgs) ? msgs : [msgs];
+              return msgList.map(msg => `${field}: ${msg}`).join('<br>');
+            }).join('<br>');
+            errorMsg = '• ' + errList;
+          }
+        }
+        
+        // Обработка ошибок типа "Validation failed: 8 ошибка(и)"
+        if (errorMsg.includes('Validation failed') || errorMsg.includes('ошибка')) {
+          errorMsg = 'Please fill all required fields correctly. Attributes must be between 1 and 30.';
+        }
+        
+        await showErrorModal('Update Failed', errorMsg);
       }
     }
 
@@ -404,7 +560,8 @@
     }
 
     async function removeChar(id, li) {
-      if (!confirm('Delete this character?')) return;
+      const confirmed = await confirmModal('Delete character', 'Are you sure you want to delete this character? This action cannot be undone.');
+      if (!confirmed) return;
       try {
         await api(`/api/characters/${encodeURIComponent(id)}`, { method: 'DELETE' });
         li.remove();
@@ -428,8 +585,8 @@
       });
     }
 
-    await loadCampaigns();
-    await runList();
+    const characters = await runList();
+    await loadCampaigns(characters);
     bindCharActions();
     qs('#btn-ch-create').addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); createCharacter(); });
   }
@@ -570,7 +727,8 @@
         const id = li.getAttribute('data-id');
         const act = btn.getAttribute('data-act');
         if (act === 'delete') {
-          if (!confirm('Delete this item?')) return;
+          const confirmed = await confirmModal('Delete item', 'Are you sure you want to delete this item? This action cannot be undone.');
+          if (!confirmed) return;
           try {
             await api(`/api/items/${encodeURIComponent(id)}`, { method: 'DELETE' });
             li.remove();

@@ -12,6 +12,7 @@ import org.sft.tabletoprpg.repo.UserRepository;
 import org.sft.tabletoprpg.service.CharacterService;
 import org.sft.tabletoprpg.service.dto.character.*;
 import org.sft.tabletoprpg.service.exception.BadRequestException;
+import org.sft.tabletoprpg.service.exception.ConflictException;
 import org.sft.tabletoprpg.service.exception.ForbiddenException;
 import org.sft.tabletoprpg.service.exception.NotFoundException;
 import org.springframework.stereotype.Service;
@@ -78,6 +79,12 @@ public class CharacterServiceImpl implements CharacterService {
             throw new ForbiddenException("Владелец персонажа должен быть участником кампании");
         }
 
+        // Проверка: один пользователь = один персонаж в кампании
+        boolean alreadyHasCharacter = characterRepository
+            .existsByCampaign_IdAndOwner_Id(campaignId, owner.getId());
+        if (alreadyHasCharacter) {
+            throw new ConflictException("В этой кампании у вас уже есть персонаж. Один игрок может иметь только одного персонажа в кампании.");
+        }
 
         boolean nameTaken = characterRepository
             .existsByCampaign_IdAndNameIgnoreCase(campaignId, name);
@@ -109,8 +116,8 @@ public class CharacterServiceImpl implements CharacterService {
             .orElseThrow(() -> new NotFoundException("Персонаж не найден"));
 
         UUID ownerId = character.getOwner().getId();
-        UUID gmId = character.getCampaign().getGm().getId();
-        if (!requesterId.equals(ownerId) && !requesterId.equals(gmId)) {
+        UUID gmId = character.getCampaign() != null ? character.getCampaign().getGm().getId() : null;
+        if (!requesterId.equals(ownerId) && (gmId == null || !requesterId.equals(gmId))) {
             throw new ForbiddenException("Нет прав на редактирование этого персонажа");
         }
 
@@ -118,11 +125,13 @@ public class CharacterServiceImpl implements CharacterService {
         if (req.name() != null) {
             String name = req.name().trim();
             if (name.isEmpty()) throw new BadRequestException("Имя персонажа не должно быть пустым");
-            boolean taken = characterRepository.existsByCampaign_IdAndNameIgnoreCase(
-                character.getCampaign().getId(), name
-            );
-            if (taken && !name.equalsIgnoreCase(character.getName())) {
-                throw new BadRequestException("В этой кампании уже есть персонаж с таким именем");
+            if (character.getCampaign() != null) {
+                boolean taken = characterRepository.existsByCampaign_IdAndNameIgnoreCase(
+                    character.getCampaign().getId(), name
+                );
+                if (taken && !name.equalsIgnoreCase(character.getName())) {
+                    throw new BadRequestException("В этой кампании уже есть персонаж с таким именем");
+                }
             }
             character.setName(name);
         }
