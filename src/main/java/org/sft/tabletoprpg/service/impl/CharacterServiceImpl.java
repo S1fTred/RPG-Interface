@@ -271,6 +271,9 @@ public class CharacterServiceImpl implements CharacterService {
             .hp(character.getHp())
             .maxHp(character.getMaxHp())
             .attributes(mapAttributesDto(character.getAtributes()))
+            .ownerId(character.getOwner() != null ? character.getOwner().getId() : null)
+            .campaignId(character.getCampaign() != null ? character.getCampaign().getId() : null)       
+            .campaignName(character.getCampaign() != null ? character.getCampaign().getName() : null)
             .build();
     }
 

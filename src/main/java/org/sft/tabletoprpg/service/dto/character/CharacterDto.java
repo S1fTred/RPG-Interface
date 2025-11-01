@@ -15,5 +15,6 @@ public record CharacterDto(
         int maxHp,
         AttributesDto attributes,
         UUID ownerId,
-        UUID campaignId
+        UUID campaignId,
+        String campaignName
 ) {}

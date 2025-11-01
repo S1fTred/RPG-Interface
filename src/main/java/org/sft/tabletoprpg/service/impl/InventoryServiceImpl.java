@@ -227,10 +227,23 @@ public class InventoryServiceImpl implements InventoryService {
 
     //--------------------МАППЕРЫ----------------//
     private CharacterInventoryEntryDto toDto(CharacterInventory characterItem){
+        Item item = characterItem.getItem();
         return CharacterInventoryEntryDto.builder()
             .characterId(characterItem.getCharacter().getId())
-            .itemId(characterItem.getItem().getId())
+            .itemId(item.getId())
             .quantity(characterItem.getQuantity())
+            .item(toItemDto(item))
+            .build();
+    }
+
+    private org.sft.tabletoprpg.service.dto.item.ItemDto toItemDto(Item item) {
+        return org.sft.tabletoprpg.service.dto.item.ItemDto.builder()
+            .id(item.getId())
+            .name(item.getName())
+            .description(item.getDescription())
+            .weight(item.getWeight())
+            .price(item.getPrice())
+            .createdAt(null) // Item entity doesn't have createdAt field
             .build();
     }
 }

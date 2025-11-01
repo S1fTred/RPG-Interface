@@ -1,6 +1,7 @@
 package org.sft.tabletoprpg.service.dto.inventory;
 
 import lombok.Builder;
+import org.sft.tabletoprpg.service.dto.item.ItemDto;
 
 import java.util.UUID;
 
@@ -8,6 +9,7 @@ import java.util.UUID;
 public record CharacterInventoryEntryDto(
         UUID characterId,
         UUID itemId,
-        int quantity
+        int quantity,
+        ItemDto item
 ) {
 }

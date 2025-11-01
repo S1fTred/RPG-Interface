@@ -71,11 +71,14 @@
       const overlay = qs('#modal-overlay');
       const titleEl = qs('#modal-title');
       const messageEl = qs('#modal-message');
+      const inputEl = qs('#modal-input');
       const confirmBtn = qs('#modal-confirm');
       const cancelBtn = qs('#modal-cancel');
       
       titleEl.textContent = title || 'Confirm';
       messageEl.innerHTML = message || 'Are you sure?';
+      messageEl.hidden = false;
+      inputEl.hidden = true;
       
       confirmBtn.textContent = 'Confirm';
       confirmBtn.hidden = false;
@@ -116,11 +119,13 @@
       const overlay = qs('#modal-overlay');
       const titleEl = qs('#modal-title');
       const messageEl = qs('#modal-message');
+      const inputEl = qs('#modal-input');
       const confirmBtn = qs('#modal-confirm');
       const cancelBtn = qs('#modal-cancel');
       
       titleEl.textContent = title || 'Error';
       messageEl.innerHTML = message || 'An error occurred';
+      inputEl.hidden = true;
       
       confirmBtn.textContent = 'OK';
       confirmBtn.hidden = false;
@@ -147,6 +152,73 @@
       };
       
       overlay.hidden = false;
+    });
+  }
+
+  function promptModal(title, message, defaultValue = '', inputType = 'text') {
+    return new Promise((resolve) => {
+      const overlay = qs('#modal-overlay');
+      const titleEl = qs('#modal-title');
+      const messageEl = qs('#modal-message');
+      const inputEl = qs('#modal-input');
+      const confirmBtn = qs('#modal-confirm');
+      const cancelBtn = qs('#modal-cancel');
+      
+      titleEl.textContent = title || 'Input';
+      messageEl.textContent = message || 'Enter value:';
+      messageEl.hidden = false;
+      inputEl.hidden = false;
+      inputEl.value = defaultValue || '';
+      inputEl.type = inputType;
+      
+      confirmBtn.textContent = 'OK';
+      confirmBtn.hidden = false;
+      cancelBtn.hidden = false;
+      confirmBtn.classList.remove('danger');
+      confirmBtn.classList.add('primary');
+      
+      const cleanup = () => {
+        overlay.hidden = true;
+        confirmBtn.onclick = null;
+        cancelBtn.onclick = null;
+        overlay.onclick = null;
+        inputEl.onkeydown = null;
+      };
+      
+      const handleConfirm = () => {
+        const value = inputEl.value;
+        cleanup();
+        resolve(value);
+      };
+      
+      confirmBtn.onclick = handleConfirm;
+      
+      cancelBtn.onclick = () => {
+        cleanup();
+        resolve(null);
+      };
+      
+      inputEl.onkeydown = (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          handleConfirm();
+        } else if (ev.key === 'Escape') {
+          ev.preventDefault();
+          cleanup();
+          resolve(null);
+        }
+      };
+      
+      overlay.onclick = (ev) => {
+        if (ev.target === overlay) {
+          cleanup();
+          resolve(null);
+        }
+      };
+      
+      overlay.hidden = false;
+      inputEl.focus();
+      inputEl.select();
     });
   }
 
@@ -419,10 +491,11 @@
           <div class="row-between">
             <div>
               <div class="list-title">${escapeHtml(c.name || 'Unnamed')} <span class="list-sub">[${escapeHtml(c.race||'')}/${escapeHtml(c.clazz||'')}]</span></div>
-              <div class="list-sub">Level: ${c.level} • HP: ${c.hp}/${c.maxHp} • Campaign: ${c.campaignId ? escapeHtml(c.campaignName || c.campaignId) : 'None'}</div>
+              <div class="list-sub">Level: ${c.level} • HP: ${c.hp}/${c.maxHp} • Campaign: ${c.campaignName ? escapeHtml(c.campaignName) : (c.campaignId ? escapeHtml(c.campaignId) : 'None')}</div>
               <div class="list-sub">STR ${c.attributes?.strength ?? '-'} | DEX ${c.attributes?.dexterity ?? '-'} | CON ${c.attributes?.constitution ?? '-'} | INT ${c.attributes?.intelligence ?? '-'} | WIS ${c.attributes?.wisdom ?? '-'} | CHA ${c.attributes?.charisma ?? '-'}</div>
             </div>
             <div class="actions">
+              <button type="button" class="btn" data-act="inventory">Inventory</button>
               <button type="button" class="btn" data-act="hp">Set HP</button>
               <button type="button" class="btn" data-act="edit">Edit</button>
               <button type="button" class="btn" data-act="delete">Delete</button>
@@ -549,14 +622,23 @@
     }
 
     async function setHp(id) {
-      const val = prompt('Set HP to:');
-      if (val == null) return;
+      const val = await promptModal('Set HP', 'Enter new HP value:', '', 'number');
+      if (val == null || val === '') return;
       const hp = Number(val);
-      if (!Number.isFinite(hp)) { alert('Invalid HP'); return; }
+      if (!Number.isFinite(hp)) {
+        await showErrorModal('Invalid Input', 'HP must be a valid number');
+        return;
+      }
+      if (hp < 0) {
+        await showErrorModal('Invalid Input', 'HP cannot be negative');
+        return;
+      }
       try {
         await api(`/api/characters/${encodeURIComponent(id)}/hp?hp=${encodeURIComponent(hp)}`, { method: 'PATCH' });
         await runList();
-      } catch (e) { alert(e.message || 'Failed to set HP'); }
+      } catch (e) {
+        await showErrorModal('Failed to Set HP', e.message || 'Failed to update character HP');
+      }
     }
 
     async function removeChar(id, li) {
@@ -568,6 +650,195 @@
       } catch (e) { alert(e.message || 'Delete failed'); }
     }
 
+    async function showInventory(characterId) {
+      try {
+        // Получаем информацию о персонаже и инвентарь
+        const [character, inventory] = await Promise.all([
+          api(`/api/characters/${encodeURIComponent(characterId)}`),
+          api(`/api/characters/${encodeURIComponent(characterId)}/inventory`)
+        ]);
+
+        const isOwner = character && String(character.ownerId) === String(userId);
+        const isGM = auth.roles.includes('GAME_MASTER') || auth.roles.includes('GM');
+
+        // Создаем модальное окно для инвентаря
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.id = 'inventory-modal';
+        modal.innerHTML = `
+          <div class="modal" style="max-width: 700px; width: 90vw; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <h3>Inventory: ${escapeHtml(character?.name || 'Character')}</h3>
+              <button type="button" class="btn" id="inv-close" style="min-width: auto; padding: 4px 12px;">Close</button>
+            </div>
+            
+            ${isGM ? `
+            <div class="panel" style="margin-bottom: 16px;">
+              <h4>Give Item (GM only)</h4>
+              <div class="grid-2">
+                <select id="inv-item-select" style="width: 100%;">
+                  <option value="">Select item…</option>
+                </select>
+                <input id="inv-quantity" type="number" placeholder="Quantity" min="1" value="1" style="width: 100%;" />
+              </div>
+              <button type="button" class="btn primary" id="inv-give" style="margin-top: 8px;">Give Item</button>
+            </div>
+            ` : ''}
+            
+            <div class="panel">
+              <h4>Items</h4>
+              <div id="inv-list">
+                ${inventory.length === 0 ? '<p class="muted">Inventory is empty.</p>' : ''}
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        modal.hidden = false;
+
+        // Загружаем список предметов для GM
+        if (isGM) {
+          try {
+            const items = await api('/api/items');
+            const select = qs('#inv-item-select', modal);
+            select.innerHTML = '<option value="">Select item…</option>' + 
+              items.map(item => `<option value="${item.id}">${escapeHtml(item.name || item.id)}</option>`).join('');
+          } catch (e) {
+            console.error('Failed to load items:', e);
+          }
+        }
+
+        // Рендерим инвентарь
+        function renderInventory(inv) {
+          const list = qs('#inv-list', modal);
+          if (inv.length === 0) {
+            list.innerHTML = '<p class="muted">Inventory is empty.</p>';
+            return;
+          }
+          list.innerHTML = inv.map(entry => {
+            const item = entry.item || {};
+            return `
+              <div class="list-item" style="margin-bottom: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                  <div style="flex: 1;">
+                    <div class="list-title">${escapeHtml(item.name || 'Unknown Item')} × ${entry.quantity}</div>
+                    ${item.description ? `<div class="list-sub">${escapeHtml(item.description)}</div>` : ''}
+                    <div class="list-sub">Weight: ${item.weight ?? '-'} • Price: ${item.price ?? '-'}</div>
+                  </div>
+                  <div style="display: flex; gap: 4px; margin-left: 12px;">
+                    ${isGM ? `
+                      <input type="number" class="inv-qty-input" data-item-id="${entry.itemId}" 
+                             value="${entry.quantity}" min="0" style="width: 60px; padding: 4px;" />
+                      <button type="button" class="btn" data-inv-act="set" data-item-id="${entry.itemId}" style="min-width: auto; padding: 4px 12px;">Set</button>
+                      <button type="button" class="btn" data-inv-act="remove" data-item-id="${entry.itemId}" style="min-width: auto; padding: 4px 12px;">Remove</button>
+                    ` : isOwner ? `
+                      <input type="number" class="inv-consume-input" data-item-id="${entry.itemId}" 
+                             value="1" min="1" max="${entry.quantity}" style="width: 60px; padding: 4px;" />
+                      <button type="button" class="btn" data-inv-act="consume" data-item-id="${entry.itemId}" style="min-width: auto; padding: 4px 12px;">Consume</button>
+                      <button type="button" class="btn" data-inv-act="remove" data-item-id="${entry.itemId}" style="min-width: auto; padding: 4px 12px;">Remove All</button>
+                    ` : ''}
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        renderInventory(inventory);
+
+        // Обработчики событий
+        qs('#inv-close', modal).addEventListener('click', () => {
+          modal.remove();
+        });
+
+        if (isGM) {
+          qs('#inv-give', modal).addEventListener('click', async () => {
+            const itemId = qs('#inv-item-select', modal).value;
+            const quantity = parseInt(qs('#inv-quantity', modal).value || '1');
+            if (!itemId || quantity < 1) {
+              await showErrorModal('Validation Error', 'Please select an item and enter a valid quantity (≥ 1).');
+              return;
+            }
+            try {
+              await api(`/api/characters/${encodeURIComponent(characterId)}/inventory`, {
+                method: 'POST',
+                body: JSON.stringify({ itemId, quantity })
+              });
+              // Перезагружаем инвентарь
+              const updatedInv = await api(`/api/characters/${encodeURIComponent(characterId)}/inventory`);
+              renderInventory(updatedInv);
+              qs('#inv-item-select', modal).value = '';
+              qs('#inv-quantity', modal).value = '1';
+            } catch (e) {
+              await showErrorModal('Error', e.message || 'Failed to give item');
+            }
+          });
+        }
+
+        // Обработчики для кнопок в списке инвентаря
+        qs('#inv-list', modal).addEventListener('click', async (ev) => {
+          const btn = ev.target.closest('button[data-inv-act]');
+          if (!btn) return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          const act = btn.getAttribute('data-inv-act');
+          const itemId = btn.getAttribute('data-item-id');
+
+          try {
+            if (act === 'set' && isGM) {
+              const input = btn.previousElementSibling;
+              const quantity = parseInt(input.value || '0');
+              if (quantity < 0) {
+                await showErrorModal('Validation Error', 'Quantity must be ≥ 0');
+                return;
+              }
+              await api(`/api/characters/${encodeURIComponent(characterId)}/inventory/${encodeURIComponent(itemId)}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ itemId, quantity })
+              });
+              const updatedInv = await api(`/api/characters/${encodeURIComponent(characterId)}/inventory`);
+              renderInventory(updatedInv);
+            } else if (act === 'consume' && isOwner) {
+              const input = btn.previousElementSibling;
+              const quantity = parseInt(input.value || '1');
+              if (quantity < 1) {
+                await showErrorModal('Validation Error', 'Quantity must be ≥ 1');
+                return;
+              }
+              await api(`/api/characters/${encodeURIComponent(characterId)}/inventory/${encodeURIComponent(itemId)}`, {
+                method: 'DELETE',
+                body: JSON.stringify({ itemId, quantity })
+              });
+              const updatedInv = await api(`/api/characters/${encodeURIComponent(characterId)}/inventory`);
+              renderInventory(updatedInv);
+            } else if (act === 'remove') {
+              const confirmed = await confirmModal('Remove Item', 
+                'Are you sure you want to remove this item completely from inventory?');
+              if (!confirmed) return;
+              
+              await api(`/api/characters/${encodeURIComponent(characterId)}/inventory/${encodeURIComponent(itemId)}`, {
+                method: 'DELETE'
+              });
+              const updatedInv = await api(`/api/characters/${encodeURIComponent(characterId)}/inventory`);
+              renderInventory(updatedInv);
+            }
+          } catch (e) {
+            await showErrorModal('Error', e.message || 'Operation failed');
+          }
+        });
+
+        // Закрытие по клику на фон
+        modal.addEventListener('click', (ev) => {
+          if (ev.target === modal) {
+            modal.remove();
+          }
+        });
+
+      } catch (e) {
+        await showErrorModal('Error', e.message || 'Failed to load inventory');
+      }
+    }
+
     function bindCharActions() {
       const container = qs('#char-results');
       container.addEventListener('click', async (ev) => {
@@ -577,6 +848,7 @@
         if (!li) return;
         const id = li.getAttribute('data-id');
         const act = btn.getAttribute('data-act');
+        if (act === 'inventory') await showInventory(id);
         if (act === 'edit') openEdit(li);
         if (act === 'save') await saveEdit(li);
         if (act === 'cancel') await runList();
@@ -696,13 +968,43 @@
       const description = (qs('#new-desc').value || '').trim();
       const weightStr = (qs('#new-weight').value || '').trim();
       const priceStr = (qs('#new-price').value || '').trim();
-      if (!name) { setMessage(msg, 'Name is required', 'err'); return; }
+      
+      // Валидация на фронтенде
+      const errors = [];
+      if (!name) errors.push('Name is required');
+      
+      if (weightStr) {
+        const weight = Number(weightStr);
+        if (!Number.isFinite(weight)) {
+          errors.push('Weight must be a valid number');
+        } else if (weight < 0) {
+          errors.push('Weight cannot be negative');
+        }
+      }
+      
+      if (priceStr) {
+        const price = Number(priceStr);
+        if (!Number.isFinite(price)) {
+          errors.push('Price must be a valid number');
+        } else if (price < 0) {
+          errors.push('Price cannot be negative');
+        } else if (!Number.isInteger(price)) {
+          errors.push('Price must be an integer');
+        }
+      }
+      
+      if (errors.length > 0) {
+        await showErrorModal('Validation Error', errors.map(e => `• ${e}`).join('<br>'));
+        return;
+      }
+      
       const body = {
         name,
         description: description || null,
         weight: weightStr ? Number(weightStr) : null,
-        price: priceStr ? Number(priceStr) : null
+        price: priceStr ? Number.parseInt(priceStr, 10) : null
       };
+      
       try {
         await api('/api/items', { method: 'POST', body: JSON.stringify(body) });
         setMessage(msg, 'Item created', 'ok');
@@ -712,8 +1014,32 @@
         qs('#new-price').value = '';
         // refresh results if there is a query
         if ((qs('#item-q').value || '').trim()) runSearch();
+        else runAll();
       } catch (e) {
-        setMessage(msg, e.message || 'Create failed', 'err');
+        let errorMsg = e.message || 'Create failed';
+        
+        // Обработка ошибок валидации с сервера
+        if (e.data && typeof e.data === 'object') {
+          if (e.data.message) {
+            errorMsg = e.data.message;
+          } else if (Array.isArray(e.data.errors)) {
+            errorMsg = e.data.errors.map(err => err.field ? `${err.field}: ${err.message || err.defaultMessage}` : (err.message || err.defaultMessage)).join('<br>• ') || errorMsg;
+            if (errorMsg !== e.message) errorMsg = '• ' + errorMsg;
+          } else if (e.data.errors && typeof e.data.errors === 'object') {
+            const errList = Object.entries(e.data.errors).map(([field, msgs]) => {
+              const msgList = Array.isArray(msgs) ? msgs : [msgs];
+              return msgList.map(msg => `${field}: ${msg}`).join('<br>');
+            }).join('<br>');
+            errorMsg = '• ' + errList;
+          }
+        }
+        
+        // Обработка ошибок типа "Validation failed: 8 ошибка(и)"
+        if (errorMsg.includes('Validation failed') || errorMsg.includes('ошибка')) {
+          errorMsg = 'Please fill all required fields correctly. Name is required. Weight and Price must be non-negative numbers.';
+        }
+        
+        await showErrorModal('Create Failed', errorMsg);
       }
     }
 
@@ -733,7 +1059,7 @@
             await api(`/api/items/${encodeURIComponent(id)}`, { method: 'DELETE' });
             li.remove();
           } catch (e) {
-            alert(e.message || 'Delete failed');
+            await showErrorModal('Delete Failed', e.message || 'Failed to delete item');
           }
         }
         if (act === 'edit') {
@@ -776,19 +1102,74 @@
       const description = (li.querySelector('.edit-desc').value || '').trim();
       const weightStr = (li.querySelector('.edit-weight').value || '').trim();
       const priceStr = (li.querySelector('.edit-price').value || '').trim();
-      if (!name) { alert('Name is required'); return; }
+      
+      // Валидация на фронтенде
+      const errors = [];
+      if (!name) errors.push('Name is required');
+      
+      if (weightStr) {
+        const weight = Number(weightStr);
+        if (!Number.isFinite(weight)) {
+          errors.push('Weight must be a valid number');
+        } else if (weight < 0) {
+          errors.push('Weight cannot be negative');
+        }
+      }
+      
+      if (priceStr) {
+        const price = Number(priceStr);
+        if (!Number.isFinite(price)) {
+          errors.push('Price must be a valid number');
+        } else if (price < 0) {
+          errors.push('Price cannot be negative');
+        } else if (!Number.isInteger(price)) {
+          errors.push('Price must be an integer');
+        }
+      }
+      
+      if (errors.length > 0) {
+        await showErrorModal('Validation Error', errors.map(e => `• ${e}`).join('<br>'));
+        return;
+      }
+      
       const body = {
         name,
         description: description || null,
         weight: weightStr ? Number(weightStr) : null,
-        price: priceStr ? Number(priceStr) : null
+        price: priceStr ? Number.parseInt(priceStr, 10) : null
       };
+      
       try {
         await api(`/api/items/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) });
         // refresh list
-        runSearch();
+        const q = (qs('#item-q').value || '').trim();
+        if (q) runSearch();
+        else runAll();
       } catch (e) {
-        alert(e.message || 'Update failed');
+        let errorMsg = e.message || 'Update failed';
+        
+        // Обработка ошибок валидации с сервера
+        if (e.data && typeof e.data === 'object') {
+          if (e.data.message) {
+            errorMsg = e.data.message;
+          } else if (Array.isArray(e.data.errors)) {
+            errorMsg = e.data.errors.map(err => err.field ? `${err.field}: ${err.message || err.defaultMessage}` : (err.message || err.defaultMessage)).join('<br>• ') || errorMsg;
+            if (errorMsg !== e.message) errorMsg = '• ' + errorMsg;
+          } else if (e.data.errors && typeof e.data.errors === 'object') {
+            const errList = Object.entries(e.data.errors).map(([field, msgs]) => {
+              const msgList = Array.isArray(msgs) ? msgs : [msgs];
+              return msgList.map(msg => `${field}: ${msg}`).join('<br>');
+            }).join('<br>');
+            errorMsg = '• ' + errList;
+          }
+        }
+        
+        // Обработка ошибок типа "Validation failed: 8 ошибка(и)"
+        if (errorMsg.includes('Validation failed') || errorMsg.includes('ошибка')) {
+          errorMsg = 'Please fill all required fields correctly. Name is required. Weight and Price must be non-negative numbers.';
+        }
+        
+        await showErrorModal('Update Failed', errorMsg);
       }
     }
 
