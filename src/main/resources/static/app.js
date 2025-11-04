@@ -885,7 +885,7 @@
               <div class="row-between">
                 <div>
                   <div class="list-title"><a href="#/campaigns/${c.id}">${escapeHtml(c.name || 'Unnamed')}</a></div>
-                  <div class="list-sub">GM: ${c.gmId || '-'} • Created: ${c.createdAt || '-'}</div>
+                  <div class="list-sub">GM: ${c.gmId || '-'} • Created: ${formatDateTime(c.createdAt)}</div>
                 </div>
                 <div class="actions">
                   <a class="btn" href="#/campaigns/${c.id}">Open</a>
@@ -991,7 +991,7 @@
         <div class="panel">
           <div class="list-sub">GM: ${escapeHtml(gmUsername)}</div>
           ${campaign.description ? `<div class="list-sub" style="margin-top:8px;">${escapeHtml(campaign.description)}</div>` : ''}
-          <div class="list-sub" style="margin-top:8px;">Created: ${campaign.createdAt || '-'}</div>
+          <div class="list-sub" style="margin-top:8px;">Created: ${formatDateTime(campaign.createdAt)}</div>
         </div>
 
         ${isCampaignGm ? `
@@ -1002,16 +1002,11 @@
               `<li class="list-item"><div class="list-title">${escapeHtml(m.username || m.userId)} <span class="list-sub">(${escapeHtml(m.roleInCampaign || 'PLAYER')})</span></div></li>`
             ))}
           </div>
-          <div style="margin-top:12px;">
-            <div class="grid-2">
-              <input id="cd-add-username" placeholder="Username to add" />
-              <select id="cd-add-role">
-                <option value="PLAYER" selected>PLAYER</option>
-                <option value="GM">GM</option>
-              </select>
-            </div>
-            <button type="button" class="btn" id="cd-add-btn" style="margin-top:8px;">Add member</button>
-          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Add members</h3>
+          <div id="cd-all-users"><p class="muted">Loading users…</p></div>
         </div>
         ` : ''}
 
@@ -1048,7 +1043,7 @@
             const entries = await api(`/api/campaigns/${encodeURIComponent(campaignId)}/journal?include=all`);
             const render = (items) => renderList(items, 'No journal entries yet.', (e) => (
               `<li class="list-item">
-                <div class="list-title">${escapeHtml(e.title || '(no title)')} <span class="list-sub">[${escapeHtml(e.type||'')}] • ${escapeHtml(e.visibility||'')}</span></div>
+                <div class="list-title">${escapeHtml(e.title || '(no title)')} <span class="list-sub">${e.type ? '[' + escapeHtml(e.type) + '] • ' : ''}${escapeHtml(e.visibility||'')}</span></div>
                 <div class="list-sub">${escapeHtml(e.tags||'')}</div>
                 <div class="list-sub">${escapeHtml(e.content||'')}</div>
               </li>`
@@ -1069,14 +1064,13 @@
           const content = (qs('#cd-jr-content').value || '').trim();
           const tags = (qs('#cd-jr-tags').value || '').trim();
           const errors = [];
-          if (!type) errors.push('Type is required');
           if (!title) errors.push('Title is required');
           if (!content) errors.push('Content is required');
           if (errors.length) { await showErrorModal('Validation Error', errors.map(e=>`• ${e}`).join('<br>')); return; }
           try {
             await api(`/api/campaigns/${encodeURIComponent(campaignId)}/journal`, {
               method: 'POST',
-              body: JSON.stringify({ type, visibility, title, content, tags: tags || null })
+              body: JSON.stringify({ type: (type || null), visibility, title, content, tags: tags || null })
             });
             qs('#cd-jr-type').value = '';
             qs('#cd-jr-title').value = '';
@@ -1088,26 +1082,74 @@
           }
         });
 
-        const addBtn = qs('#cd-add-btn');
-        if (addBtn) addBtn.addEventListener('click', async (ev) => {
-          ev.preventDefault(); ev.stopPropagation();
-          const username = (qs('#cd-add-username').value || '').trim();
-          const role = (qs('#cd-add-role').value || 'PLAYER').trim();
-          if (!username) { await showErrorModal('Validation Error', 'Username is required'); return; }
-          try {
-            const user = await api(`/api/users/by-username?username=${encodeURIComponent(username)}`);
-            const userId = user && user.id;
-            if (!userId) throw new Error('User not found');
-            await api(`/api/campaigns/${encodeURIComponent(campaignId)}/members/${encodeURIComponent(userId)}`, {
-              method: 'PUT',
-              body: JSON.stringify({ userId, roleInCampaign: role })
-            });
-            // Refresh page to show updated members and roles
-            showCampaignDetail(campaignId);
-          } catch (e) {
-            await showErrorModal('Add Member Failed', e.message || 'Failed to add member');
-          }
-        });
+        // Load all users (excluding self), mark existing members
+        try {
+          const [allUsers, curMembers] = await Promise.all([
+            api('/api/users?excludeSelf=true'),
+            api(`/api/campaigns/${encodeURIComponent(campaignId)}/members`)
+          ]);
+          const memberMap = new Map((curMembers || []).map(m => [String(m.userId), m]));
+          const listHtml = renderList(allUsers, 'No users found.', (u) => {
+            const m = memberMap.get(String(u.id));
+            const inCampaign = !!m;
+            const role = m?.roleInCampaign || '—';
+            return `
+              <li class="list-item" data-user-id="${u.id}">
+                <div class="row-between">
+                  <div>
+                    <div class="list-title">${escapeHtml(u.username || u.id)} ${inCampaign ? `<span class="list-sub">(in campaign: ${escapeHtml(role)})</span>` : ''}</div>
+                    <div class="list-sub">${escapeHtml(u.email || '')}</div>
+                  </div>
+                  <div class="actions">
+                    ${inCampaign ? `
+                      <button type="button" class="btn" data-user-act="role">Set role</button>
+                    ` : `
+                      <select class="cd-role-pick">
+                        <option value="PLAYER" selected>PLAYER</option>
+                        <option value="GM">GM</option>
+                      </select>
+                      <button type="button" class="btn" data-user-act="add">Add</button>
+                    `}
+                  </div>
+                </div>
+              </li>
+            `;
+          });
+          qs('#cd-all-users').innerHTML = listHtml;
+
+          qs('#cd-all-users').addEventListener('click', async (ev) => {
+            const btn = ev.target.closest('button[data-user-act]');
+            if (!btn) return;
+            ev.preventDefault(); ev.stopPropagation();
+            const li = ev.target.closest('li.list-item');
+            const userId = li.getAttribute('data-user-id');
+            const act = btn.getAttribute('data-user-act');
+            try {
+              if (act === 'add') {
+                const roleSel = li.querySelector('.cd-role-pick');
+                const role = (roleSel && roleSel.value) || 'PLAYER';
+                await api(`/api/campaigns/${encodeURIComponent(campaignId)}/members/${encodeURIComponent(userId)}`, {
+                  method: 'PUT',
+                  body: JSON.stringify({ userId, roleInCampaign: role })
+                });
+                showCampaignDetail(campaignId);
+              }
+              if (act === 'role') {
+                const role = await promptModal('Set role', 'Enter role for user (GM or PLAYER):', 'PLAYER', 'text');
+                if (!role) return;
+                await api(`/api/campaigns/${encodeURIComponent(campaignId)}/members/${encodeURIComponent(userId)}`, {
+                  method: 'PUT',
+                  body: JSON.stringify({ userId, roleInCampaign: role.toUpperCase() })
+                });
+                showCampaignDetail(campaignId);
+              }
+            } catch (e) {
+              await showErrorModal('Operation Failed', e.message || 'Failed to update member');
+            }
+          });
+        } catch (e) {
+          qs('#cd-all-users').innerHTML = `<p class="err">${escapeHtml(e.message || 'Failed to load users')}</p>`;
+        }
       }
     } catch (e) {
       setRouteContent(`<h2>Campaign</h2><p class="err">${escapeHtml(e.message || 'Failed to load')}</p>`);
@@ -1432,35 +1474,25 @@
         } catch { return { campaign: c, entries: [] }; }
       }));
 
-      const createBlock = `
-        <div class="panel">
-          <h3>Create journal entry</h3>
-          <div class="grid-2">
-            <select id="jr-camp">
-              ${(myCampaigns || []).map(c => `<option value="${c.id}">${escapeHtml(c.name || c.id)}</option>`).join('')}
-            </select>
-            <input id="jr-type" placeholder="Type (e.g. session)" />
-          </div>
-          <div class="grid-2">
-            <select id="jr-vis">
-              <option value="GM_ONLY">GM_ONLY</option>
-              <option value="PLAYERS">PLAYERS</option>
-            </select>
-            <input id="jr-tags" placeholder="Tags (comma separated)" />
-          </div>
-          <input id="jr-title" placeholder="Title" />
-          <textarea id="jr-content" placeholder="Content" style="width:100%; min-height:120px; margin-top:6px;"></textarea>
-          <button type="button" class="btn primary" id="jr-create" style="margin-top:8px;">Create</button>
-        </div>`;
+      // Campaign entries are created only inside a specific campaign's page (GM only)
 
       const lists = entriesPerCampaign.map(({ campaign, entries }) => (
         `<div class="panel">
           <h3>${escapeHtml(campaign.name || 'Campaign')}</h3>
           ${renderList(entries, 'No entries for this campaign.', (e) => (
-            `<li class="list-item">
-              <div class="list-title">${escapeHtml(e.title || '(no title)')} <span class="list-sub">[${escapeHtml(e.type||'')}] • ${escapeHtml(e.visibility||'')}</span></div>
-              <div class="list-sub">${escapeHtml(e.tags||'')}</div>
-              <div class="list-sub">${escapeHtml(e.content||'')}</div>
+            `<li class="list-item" data-entry-id="${e.id}" data-campaign-id="${campaign.id}" data-kind="campaign">
+              <div class="row-between">
+                <div>
+                  <div class="list-title">${escapeHtml(e.title || '(no title)')} <span class="list-sub">${e.type ? '[' + escapeHtml(e.type) + '] • ' : ''}${escapeHtml(e.visibility||'')}</span></div>
+                  <div class="list-sub">${escapeHtml(e.tags||'')}</div>
+                  <div class="list-sub">${escapeHtml(e.content||'')}</div>
+                  <div class="list-sub">Created: ${formatDateTime(e.createdAt)}</div>
+                </div>
+                <div class="actions">
+                  <button type="button" class="btn" data-jr-act="edit">Edit</button>
+                  <button type="button" class="btn" data-jr-act="delete">Delete</button>
+                </div>
+              </div>
             </li>`
           ))}
         </div>`
@@ -1470,10 +1502,19 @@
         <div class="panel">
           <h3>My Personal Journals</h3>
           ${renderList(personal, 'No personal entries yet.', (e) => (
-            `<li class="list-item">
-              <div class="list-title">${escapeHtml(e.title || '(no title)')} <span class="list-sub">[${escapeHtml(e.type||'')}]</span></div>
-              <div class="list-sub">${escapeHtml(e.tags||'')}</div>
-              <div class="list-sub">${escapeHtml(e.content||'')}</div>
+            `<li class="list-item" data-entry-id="${e.id}" data-kind="personal">
+              <div class="row-between">
+                <div>
+                  <div class="list-title">${escapeHtml(e.title || '(no title)')} <span class="list-sub">[${escapeHtml(e.type||'')}]</span></div>
+                  <div class="list-sub">${escapeHtml(e.tags||'')}</div>
+                  <div class="list-sub">${escapeHtml(e.content||'')}</div>
+                  <div class="list-sub">Created: ${formatDateTime(e.createdAt)}</div>
+                </div>
+                <div class="actions">
+                  <button type="button" class="btn" data-jr-act="edit">Edit</button>
+                  <button type="button" class="btn" data-jr-act="delete">Delete</button>
+                </div>
+              </div>
             </li>`
           ))}
           <h4 style="margin-top:12px;">Create personal entry</h4>
@@ -1490,30 +1531,104 @@
           <button type="button" class="btn" id="pj-create" style="margin-top:8px;">Create personal</button>
         </div>`;
 
-      setRouteContent(`<h2>Journal</h2>${personalBlock}${createBlock}${lists}`);
+      setRouteContent(`<h2>Journal</h2>${personalBlock}${lists}`);
 
-      qs('#jr-create').addEventListener('click', async (ev) => {
+      // Journal edit/delete actions (personal and campaign)
+      function openJournalEditor(initial, onSubmit) {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+          <div class="modal" style="max-width: 640px; width: 90vw;">
+            <h3>Edit Journal Entry</h3>
+            <div class="grid-2">
+              <input id="jr-ed-type" placeholder="Type" value="${escapeHtml(initial.type || '')}" />
+              <select id="jr-ed-vis">
+                <option value="GM_ONLY" ${initial.visibility === 'GM_ONLY' ? 'selected' : ''}>GM_ONLY</option>
+                <option value="PLAYERS" ${initial.visibility === 'PLAYERS' ? 'selected' : ''}>PLAYERS</option>
+              </select>
+            </div>
+            <input id="jr-ed-title" placeholder="Title" value="${escapeHtml(initial.title || '')}" />
+            <input id="jr-ed-tags" placeholder="Tags (comma separated)" value="${escapeHtml(initial.tags || '')}" />
+            <textarea id="jr-ed-content" placeholder="Content" style="width:100%; min-height:120px; margin-top:6px;">${escapeHtml(initial.content || '')}</textarea>
+            <div class="modal-actions" style="margin-top: 12px;">
+              <button type="button" class="btn" id="jr-ed-cancel">Cancel</button>
+              <button type="button" class="btn primary" id="jr-ed-save">Save</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        modal.hidden = false;
+        function close() { modal.remove(); }
+        qs('#jr-ed-cancel', modal).addEventListener('click', () => close());
+        qs('#jr-ed-save', modal).addEventListener('click', async () => {
+          const payload = {
+            type: ((qs('#jr-ed-type', modal).value || '').trim() || null),
+            visibility: (qs('#jr-ed-vis', modal).value || 'GM_ONLY'),
+            title: (qs('#jr-ed-title', modal).value || '').trim(),
+            content: (qs('#jr-ed-content', modal).value || '').trim(),
+            tags: (qs('#jr-ed-tags', modal).value || '').trim() || null,
+          };
+          const errors = [];
+          if (!payload.title) errors.push('Title is required');
+          if (!payload.content) errors.push('Content is required');
+          if (errors.length) { await showErrorModal('Validation Error', errors.map(e=>`• ${e}`).join('<br>')); return; }
+          try {
+            await onSubmit(payload);
+            close();
+            showJournal();
+          } catch (e) {
+            await showErrorModal('Update Failed', e.message || 'Failed to update journal');
+          }
+        });
+        modal.addEventListener('click', (ev) => { if (ev.target === modal) close(); });
+      }
+
+      const outlet = qs('#route-outlet');
+      outlet.addEventListener('click', async (ev) => {
+        const btn = ev.target.closest('button[data-jr-act]');
+        if (!btn) return;
         ev.preventDefault(); ev.stopPropagation();
-        const campaignId = qs('#jr-camp').value;
-        const type = (qs('#jr-type').value || '').trim();
-        const visibility = (qs('#jr-vis').value || 'GM_ONLY');
-        const title = (qs('#jr-title').value || '').trim();
-        const content = (qs('#jr-content').value || '').trim();
-        const tags = (qs('#jr-tags').value || '').trim();
-        const errors = [];
-        if (!campaignId) errors.push('Campaign is required');
-        if (!type) errors.push('Type is required');
-        if (!title) errors.push('Title is required');
-        if (!content) errors.push('Content is required');
-        if (errors.length) { await showErrorModal('Validation Error', errors.map(e=>`• ${e}`).join('<br>')); return; }
-        try {
-          await api(`/api/campaigns/${encodeURIComponent(campaignId)}/journal`, {
-            method: 'POST',
-            body: JSON.stringify({ type, visibility, title, content, tags: tags || null })
+        const li = ev.target.closest('li.list-item');
+        if (!li) return;
+        const entryId = li.getAttribute('data-entry-id');
+        const kind = li.getAttribute('data-kind'); // 'personal' | 'campaign'
+        const campaignId = li.getAttribute('data-campaign-id');
+
+        // Extract current fields from UI for initial values
+        const title = li.querySelector('.list-title')?.childNodes[0]?.textContent?.trim() || '';
+        const meta = li.querySelector('.list-title .list-sub')?.textContent || '';
+        const tags = li.querySelectorAll('.list-sub')[0]?.textContent || '';
+        const content = li.querySelectorAll('.list-sub')[1]?.textContent || '';
+        const typeMatch = /\[(.*?)\]/.exec(meta);
+        const type = typeMatch ? typeMatch[1] : '';
+        const visMatch = /•\s*(GM_ONLY|PLAYERS)/.exec(meta);
+        const visibility = visMatch ? visMatch[1] : 'GM_ONLY';
+
+        const act = btn.getAttribute('data-jr-act');
+        if (act === 'edit') {
+          openJournalEditor({ title, type, visibility, tags, content }, async (payload) => {
+            if (kind === 'campaign' && campaignId) {
+              await api(`/api/campaigns/${encodeURIComponent(campaignId)}/journal/${encodeURIComponent(entryId)}`, {
+                method: 'PATCH', body: JSON.stringify(payload)
+              });
+            } else {
+              await api(`/api/journals/update/${encodeURIComponent(entryId)}`, { method: 'PATCH', body: JSON.stringify(payload) });
+            }
           });
-          location.hash = `#/campaigns/${campaignId}`;
-        } catch (e) {
-          await showErrorModal('Create Failed', e.message || 'Failed to create journal entry');
+        }
+        if (act === 'delete') {
+          const confirmed = await confirmModal('Delete journal entry', 'Are you sure you want to delete this journal entry? This action cannot be undone.');
+          if (!confirmed) return;
+          try {
+            if (kind === 'campaign' && campaignId) {
+              await api(`/api/campaigns/${encodeURIComponent(campaignId)}/journal/${encodeURIComponent(entryId)}`, { method: 'DELETE' });
+            } else {
+              await api(`/api/journals/delete/${encodeURIComponent(entryId)}`, { method: 'DELETE' });
+            }
+            showJournal();
+          } catch (e) {
+            await showErrorModal('Delete Failed', e.message || 'Failed to delete journal entry');
+          }
         }
       });
 
@@ -1526,12 +1641,11 @@
         const content = (qs('#pj-content').value || '').trim();
         const tags = (qs('#pj-tags').value || '').trim();
         const errors = [];
-        if (!type) errors.push('Type is required');
         if (!title) errors.push('Title is required');
         if (!content) errors.push('Content is required');
         if (errors.length) { await showErrorModal('Validation Error', errors.map(e=>`• ${e}`).join('<br>')); return; }
         try {
-          await api(`/api/journals`, { method: 'POST', body: JSON.stringify({ type, visibility, title, content, tags: tags || null }) });
+          await api(`/api/journals`, { method: 'POST', body: JSON.stringify({ type: (type || null), visibility, title, content, tags: tags || null }) });
           showJournal();
         } catch (e) {
           await showErrorModal('Create Failed', e.message || 'Failed to create personal journal');
@@ -1549,6 +1663,20 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  function formatDateTime(value) {
+    if (!value) return '-';
+    try {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return String(value);
+      return d.toLocaleString(undefined, {
+        year: 'numeric', month: 'short', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+      });
+    } catch {
+      return String(value);
+    }
   }
 
   function router() {

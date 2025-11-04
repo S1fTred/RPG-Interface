@@ -115,15 +115,12 @@ public class JournalServiceImpl implements JournalService {
 
         // Валидации обязательных полей
         String type = req.type();
-        if (type == null || type.trim().isEmpty()) {
-            throw new BadRequestException("Тип записи не должен быть пустым");
-        }
         if (req.visibility() == null) {
             throw new BadRequestException("Видимость записи не должна быть пустой");
         }
 
         JournalEntry entry = toEntity(req);
-        entry.setType(type.trim());
+        entry.setType(type == null || type.trim().isEmpty() ? null : type.trim());
         entry.setCampaign(campaign);
         entry.setAuthor(author);
 
@@ -150,8 +147,7 @@ public class JournalServiceImpl implements JournalService {
 
         if (req.type() != null) {
             String type = req.type().trim();
-            if (type.isEmpty()) throw new BadRequestException("Тип записи не должен быть пустым");
-            entry.setType(type);
+            entry.setType(type.isEmpty() ? null : type);
         }
         if (req.visibility() != null) {
             entry.setVisibility(req.visibility());
@@ -238,15 +234,12 @@ public class JournalServiceImpl implements JournalService {
             .orElseThrow(() -> new NotFoundException("Автор не найден"));
 
         String type = req.type();
-        if (type == null || type.trim().isEmpty()) {
-            throw new BadRequestException("Тип записи не должен быть пустым");
-        }
         if (req.visibility() == null) {
             throw new BadRequestException("Видимость записи не должна быть пустой");
         }
 
         JournalEntry entry = toEntity(req);
-        entry.setType(type.trim());
+        entry.setType(type == null || type.trim().isEmpty() ? null : type.trim());
         entry.setCampaign(null);
         entry.setAuthor(author);
         journalEntryRepository.save(entry);

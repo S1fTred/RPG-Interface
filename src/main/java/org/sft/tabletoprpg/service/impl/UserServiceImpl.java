@@ -120,6 +120,11 @@ public class UserServiceImpl implements UserService {
         return toDto(user);
     }
 
+    @Override
+    public java.util.List<UserDto> findAll() {
+        return userRepository.findAll().stream().map(this::toDto).toList();
+    }
+
 
 
 

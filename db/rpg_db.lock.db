@@ -1,6 +1,6 @@
 #FileLock
-#Tue Nov 04 18:51:47 MSK 2025
+#Tue Nov 04 19:41:47 MSK 2025
 hostName=sft
-id=19a4f912af66f1b73ca797706d010f633474b581991
+id=19a4fbef390bab54d8ccda7f4c21359e74713ad7d1e
 method=file
-server=26.91.115.214\:64013
+server=26.91.115.214\:50209

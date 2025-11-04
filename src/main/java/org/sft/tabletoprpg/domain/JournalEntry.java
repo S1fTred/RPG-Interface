@@ -45,7 +45,7 @@ public class JournalEntry {
     private User author;
 
     @Size(max = 50)
-    @NotBlank(message = "Тип журнала не должен быть пустым")
+    @Column(nullable = true)
     private String type;
 
     @Enumerated(EnumType.STRING)

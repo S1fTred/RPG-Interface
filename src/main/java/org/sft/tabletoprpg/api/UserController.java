@@ -3,12 +3,12 @@ package org.sft.tabletoprpg.api;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.sft.tabletoprpg.domain.User;
 import org.sft.tabletoprpg.service.UserService;
 import org.sft.tabletoprpg.service.dto.user.UserDto;
 import org.sft.tabletoprpg.service.dto.user.UserRegisterRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -48,10 +48,15 @@ public class UserController {
         return ResponseEntity.ok(userDto);
     }
 
-
-
-
-
-
-
+    @GetMapping
+    public ResponseEntity<List<UserDto>> listAllUsers(
+        @AuthenticationPrincipal(expression = "id") UUID requesterId,
+        @RequestParam(name = "excludeSelf", required = false, defaultValue = "false") boolean excludeSelf
+    ) {
+        List<UserDto> all = userService.findAll();
+        if (excludeSelf && requesterId != null) {
+            all = all.stream().filter(u -> !u.id().equals(requesterId)).toList();
+        }
+        return ResponseEntity.ok(all);
+    }
 }
