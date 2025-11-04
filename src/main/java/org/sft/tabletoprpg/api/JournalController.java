@@ -58,6 +58,18 @@ public class JournalController {
         return ResponseEntity.created(location).body(dto);
     }
 
+    // Personal: POST /api/journals
+    @PostMapping("/journals")
+    public ResponseEntity<JournalEntryDto> createPersonalJournal(
+        @AuthenticationPrincipal(expression = "id") UUID requesterId,
+        @Valid @RequestBody JournalEntryCreateRequest req,
+        UriComponentsBuilder uriBuilder
+    ){
+        JournalEntryDto dto = journalService.createPersonal(requesterId, req);
+        URI location = uriBuilder.path("/api/journals/{id}").buildAndExpand(dto.id()).toUri();
+        return ResponseEntity.created(location).body(dto);
+    }
+
     // ---------- UPDATE ----------
 
     // Legacy: PATCH /api/journals/update/{entryId}
@@ -145,5 +157,13 @@ public class JournalController {
         return ResponseEntity.ok(
             journalService.getJournalById(entryId, requesterId)
         );
+    }
+
+    // Personal: GET /api/journals/me
+    @GetMapping("/journals/me")
+    public ResponseEntity<List<JournalEntryDto>> listMyJournals(
+        @AuthenticationPrincipal(expression = "id") UUID requesterId
+    ){
+        return ResponseEntity.ok(journalService.listPersonal(requesterId));
     }
 }

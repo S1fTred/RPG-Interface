@@ -869,15 +869,248 @@
       const data = await api('/api/campaigns/participating');
       const html = `
         <h2>Campaigns</h2>
-        ${renderList(data, 'You are not a member of any campaigns yet.', (c) => (
-          `<li class="list-item"><div class="list-title">${escapeHtml(c.name || 'Unnamed')}</div>
-            <div class="list-sub">GM: ${c.gmId || '-'} • Created: ${c.createdAt || '-'}</div>
-          </li>`
-        ))}
+        <div class="panel" id="camp-create">
+          <h3>Create campaign</h3>
+          <div class="grid-2">
+            <input id="camp-name" placeholder="Name" />
+            <input id="camp-desc" placeholder="Description" />
+          </div>
+          <button type="button" class="btn primary" id="btn-camp-create">Create</button>
+          <div class="form-message" id="camp-create-msg"></div>
+        </div>
+
+        <div class="panel" id="camp-list">
+          ${renderList(data, 'You are not a member of any campaigns yet.', (c) => (
+            `<li class="list-item" data-id="${c.id}">
+              <div class="row-between">
+                <div>
+                  <div class="list-title"><a href="#/campaigns/${c.id}">${escapeHtml(c.name || 'Unnamed')}</a></div>
+                  <div class="list-sub">GM: ${c.gmId || '-'} • Created: ${c.createdAt || '-'}</div>
+                </div>
+                <div class="actions">
+                  <a class="btn" href="#/campaigns/${c.id}">Open</a>
+                </div>
+              </div>
+            </li>`
+          ))}
+        </div>
       `;
       setRouteContent(html);
+
+      async function createCampaign() {
+        const msg = qs('#camp-create-msg');
+        setMessage(msg, '', '');
+        const name = (qs('#camp-name').value || '').trim();
+        const description = (qs('#camp-desc').value || '').trim();
+        if (!name) { setMessage(msg, 'Name is required', 'err'); return; }
+        try {
+          const dto = await api('/api/campaigns', { method: 'POST', body: JSON.stringify({ name, description: description || null }) });
+          setMessage(msg, 'Campaign created', 'ok');
+          qs('#camp-name').value = '';
+          qs('#camp-desc').value = '';
+          if (dto && dto.id) location.hash = `#/campaigns/${dto.id}`;
+          else location.hash = '#/campaigns';
+        } catch (e) {
+          await showErrorModal('Create Failed', e.message || 'Failed to create campaign');
+        }
+      }
+
+      qs('#btn-camp-create').addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); createCampaign(); });
     } catch (e) {
       setRouteContent(`<h2>Campaigns</h2><p class="err">${escapeHtml(e.message || 'Failed to load')}</p>`);
+    }
+  }
+
+  async function showCampaignDetail(campaignId) {
+    setRouteContent('<h2>Campaign</h2><p class="muted">Loading…</p>');
+    try {
+      const campaign = await api(`/api/campaigns/${encodeURIComponent(campaignId)}`);
+
+      let gmUsername = '-';
+      try {
+        if (campaign && campaign.gmId) {
+          const gm = await api(`/api/users/${encodeURIComponent(campaign.gmId)}`);
+          gmUsername = gm && gm.username ? gm.username : String(campaign.gmId);
+        }
+      } catch {}
+
+      let characters = [];
+      try {
+        // legacy endpoint for characters by campaign id
+        characters = await api(`/api/characters/by-campaign-id/${encodeURIComponent(campaignId)}`);
+      } catch {}
+
+      // Build owner info: username + role in campaign
+      const ownerInfo = new Map(); // userId -> { username, role }
+      const isCampaignGm = auth.user && String(auth.user.id) === String(campaign.gmId);
+      let members = [];
+      if (isCampaignGm) {
+        try {
+          members = await api(`/api/campaigns/${encodeURIComponent(campaignId)}/members`);
+          for (const m of (members || [])) {
+            ownerInfo.set(String(m.userId), { username: m.username || m.userId, role: m.roleInCampaign || 'PLAYER' });
+          }
+        } catch {}
+      } else {
+        // Fetch owners' usernames individually and infer role (GM vs PLAYER)
+        const uniqueOwnerIds = Array.from(new Set((characters || []).map(ch => String(ch.ownerId)).filter(Boolean)));
+        try {
+          const results = await Promise.all(uniqueOwnerIds.map(uid => api(`/api/users/${encodeURIComponent(uid)}`).catch(() => null)));
+          for (let i = 0; i < uniqueOwnerIds.length; i++) {
+            const uid = uniqueOwnerIds[i];
+            const u = results[i];
+            const role = String(uid) === String(campaign.gmId) ? 'GM' : 'PLAYER';
+            ownerInfo.set(String(uid), { username: (u && u.username) ? u.username : uid, role });
+          }
+        } catch {}
+      }
+
+      const list = renderList(characters, 'No characters in this campaign yet.', (ch) => {
+        const oi = ownerInfo.get(String(ch.ownerId)) || { username: ch.ownerId || '-', role: (String(ch.ownerId) === String(campaign.gmId) ? 'GM' : 'PLAYER') };
+        return (
+          `<li class="list-item" data-id="${ch.id}">
+            <div class="row-between">
+              <div>
+                <div class="list-title">${escapeHtml(ch.name || 'Unnamed')} <span class="list-sub">[${escapeHtml(ch.race||'')}/${escapeHtml(ch.clazz||'')}]</span></div>
+                <div class="list-sub">Level: ${ch.level} • HP: ${ch.hp}/${ch.maxHp}</div>
+                <div class="list-sub">Owner: ${escapeHtml(oi.username)} (${escapeHtml(oi.role)})</div>
+              </div>
+            </div>
+          </li>`
+        );
+      });
+
+      const html = `
+        <div class="row-between" style="align-items:center; gap:12px;">
+          <h2 style="margin:0;">${escapeHtml(campaign.name || 'Campaign')}</h2>
+          <div>
+            <a class="btn" href="#/campaigns">Back</a>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="list-sub">GM: ${escapeHtml(gmUsername)}</div>
+          ${campaign.description ? `<div class="list-sub" style="margin-top:8px;">${escapeHtml(campaign.description)}</div>` : ''}
+          <div class="list-sub" style="margin-top:8px;">Created: ${campaign.createdAt || '-'}</div>
+        </div>
+
+        ${isCampaignGm ? `
+        <div class="panel">
+          <h3>Members</h3>
+          <div id="cd-members">
+            ${renderList(members, 'No members yet.', (m) => (
+              `<li class="list-item"><div class="list-title">${escapeHtml(m.username || m.userId)} <span class="list-sub">(${escapeHtml(m.roleInCampaign || 'PLAYER')})</span></div></li>`
+            ))}
+          </div>
+          <div style="margin-top:12px;">
+            <div class="grid-2">
+              <input id="cd-add-username" placeholder="Username to add" />
+              <select id="cd-add-role">
+                <option value="PLAYER" selected>PLAYER</option>
+                <option value="GM">GM</option>
+              </select>
+            </div>
+            <button type="button" class="btn" id="cd-add-btn" style="margin-top:8px;">Add member</button>
+          </div>
+        </div>
+        ` : ''}
+
+        <div class="panel">
+          <h3>Characters</h3>
+          ${list}
+        </div>
+
+        ${isCampaignGm ? `
+        <div class="panel">
+          <h3>Journal (GM only)</h3>
+          <div id="cd-journal-list"><p class="muted">Loading…</p></div>
+          <h4 style="margin-top:12px;">Create entry</h4>
+          <div class="grid-2">
+            <input id="cd-jr-type" placeholder="Type (e.g. session)" />
+            <select id="cd-jr-vis">
+              <option value="GM_ONLY">GM_ONLY</option>
+              <option value="PLAYERS">PLAYERS</option>
+            </select>
+          </div>
+          <input id="cd-jr-title" placeholder="Title" />
+          <input id="cd-jr-tags" placeholder="Tags (comma separated)" />
+          <textarea id="cd-jr-content" placeholder="Content" style="width:100%; min-height:120px; margin-top:6px;"></textarea>
+          <button type="button" class="btn primary" id="cd-jr-create" style="margin-top:8px;">Create entry</button>
+        </div>
+        ` : ''}
+      `;
+      setRouteContent(html);
+
+      if (isCampaignGm) {
+        // Load journal entries
+        async function loadJournal() {
+          try {
+            const entries = await api(`/api/campaigns/${encodeURIComponent(campaignId)}/journal?include=all`);
+            const render = (items) => renderList(items, 'No journal entries yet.', (e) => (
+              `<li class="list-item">
+                <div class="list-title">${escapeHtml(e.title || '(no title)')} <span class="list-sub">[${escapeHtml(e.type||'')}] • ${escapeHtml(e.visibility||'')}</span></div>
+                <div class="list-sub">${escapeHtml(e.tags||'')}</div>
+                <div class="list-sub">${escapeHtml(e.content||'')}</div>
+              </li>`
+            ));
+            qs('#cd-journal-list').innerHTML = render(entries);
+          } catch (e) {
+            qs('#cd-journal-list').innerHTML = `<p class="err">${escapeHtml(e.message || 'Failed to load')}</p>`;
+          }
+        }
+        loadJournal();
+
+        // Add entry
+        qs('#cd-jr-create').addEventListener('click', async (ev) => {
+          ev.preventDefault(); ev.stopPropagation();
+          const type = (qs('#cd-jr-type').value || '').trim();
+          const visibility = (qs('#cd-jr-vis').value || 'GM_ONLY');
+          const title = (qs('#cd-jr-title').value || '').trim();
+          const content = (qs('#cd-jr-content').value || '').trim();
+          const tags = (qs('#cd-jr-tags').value || '').trim();
+          const errors = [];
+          if (!type) errors.push('Type is required');
+          if (!title) errors.push('Title is required');
+          if (!content) errors.push('Content is required');
+          if (errors.length) { await showErrorModal('Validation Error', errors.map(e=>`• ${e}`).join('<br>')); return; }
+          try {
+            await api(`/api/campaigns/${encodeURIComponent(campaignId)}/journal`, {
+              method: 'POST',
+              body: JSON.stringify({ type, visibility, title, content, tags: tags || null })
+            });
+            qs('#cd-jr-type').value = '';
+            qs('#cd-jr-title').value = '';
+            qs('#cd-jr-content').value = '';
+            qs('#cd-jr-tags').value = '';
+            await loadJournal();
+          } catch (e) {
+            await showErrorModal('Create Failed', e.message || 'Failed to create journal entry');
+          }
+        });
+
+        const addBtn = qs('#cd-add-btn');
+        if (addBtn) addBtn.addEventListener('click', async (ev) => {
+          ev.preventDefault(); ev.stopPropagation();
+          const username = (qs('#cd-add-username').value || '').trim();
+          const role = (qs('#cd-add-role').value || 'PLAYER').trim();
+          if (!username) { await showErrorModal('Validation Error', 'Username is required'); return; }
+          try {
+            const user = await api(`/api/users/by-username?username=${encodeURIComponent(username)}`);
+            const userId = user && user.id;
+            if (!userId) throw new Error('User not found');
+            await api(`/api/campaigns/${encodeURIComponent(campaignId)}/members/${encodeURIComponent(userId)}`, {
+              method: 'PUT',
+              body: JSON.stringify({ userId, roleInCampaign: role })
+            });
+            // Refresh page to show updated members and roles
+            showCampaignDetail(campaignId);
+          } catch (e) {
+            await showErrorModal('Add Member Failed', e.message || 'Failed to add member');
+          }
+        });
+      }
+    } catch (e) {
+      setRouteContent(`<h2>Campaign</h2><p class="err">${escapeHtml(e.message || 'Failed to load')}</p>`);
     }
   }
 
@@ -1182,6 +1415,133 @@
     runAll();
   }
 
+  async function showJournal() {
+    const userId = auth.user && auth.user.id;
+    setRouteContent('<h2>Journal</h2><p class="muted">Loading…</p>');
+    try {
+      // campaigns where current user is GM (listMine)
+      const myCampaigns = await api('/api/campaigns');
+      // personal entries
+      let personal = [];
+      try { personal = await api('/api/journals/me'); } catch {}
+      // Load entries for each campaign (GM can see include=all)
+      const entriesPerCampaign = await Promise.all((myCampaigns || []).map(async (c) => {
+        try {
+          const entries = await api(`/api/campaigns/${encodeURIComponent(c.id)}/journal?include=all`);
+          return { campaign: c, entries };
+        } catch { return { campaign: c, entries: [] }; }
+      }));
+
+      const createBlock = `
+        <div class="panel">
+          <h3>Create journal entry</h3>
+          <div class="grid-2">
+            <select id="jr-camp">
+              ${(myCampaigns || []).map(c => `<option value="${c.id}">${escapeHtml(c.name || c.id)}</option>`).join('')}
+            </select>
+            <input id="jr-type" placeholder="Type (e.g. session)" />
+          </div>
+          <div class="grid-2">
+            <select id="jr-vis">
+              <option value="GM_ONLY">GM_ONLY</option>
+              <option value="PLAYERS">PLAYERS</option>
+            </select>
+            <input id="jr-tags" placeholder="Tags (comma separated)" />
+          </div>
+          <input id="jr-title" placeholder="Title" />
+          <textarea id="jr-content" placeholder="Content" style="width:100%; min-height:120px; margin-top:6px;"></textarea>
+          <button type="button" class="btn primary" id="jr-create" style="margin-top:8px;">Create</button>
+        </div>`;
+
+      const lists = entriesPerCampaign.map(({ campaign, entries }) => (
+        `<div class="panel">
+          <h3>${escapeHtml(campaign.name || 'Campaign')}</h3>
+          ${renderList(entries, 'No entries for this campaign.', (e) => (
+            `<li class="list-item">
+              <div class="list-title">${escapeHtml(e.title || '(no title)')} <span class="list-sub">[${escapeHtml(e.type||'')}] • ${escapeHtml(e.visibility||'')}</span></div>
+              <div class="list-sub">${escapeHtml(e.tags||'')}</div>
+              <div class="list-sub">${escapeHtml(e.content||'')}</div>
+            </li>`
+          ))}
+        </div>`
+      )).join('');
+
+      const personalBlock = `
+        <div class="panel">
+          <h3>My Personal Journals</h3>
+          ${renderList(personal, 'No personal entries yet.', (e) => (
+            `<li class="list-item">
+              <div class="list-title">${escapeHtml(e.title || '(no title)')} <span class="list-sub">[${escapeHtml(e.type||'')}]</span></div>
+              <div class="list-sub">${escapeHtml(e.tags||'')}</div>
+              <div class="list-sub">${escapeHtml(e.content||'')}</div>
+            </li>`
+          ))}
+          <h4 style="margin-top:12px;">Create personal entry</h4>
+          <div class="grid-2">
+            <input id="pj-type" placeholder="Type (e.g. notes)" />
+            <select id="pj-vis">
+              <option value="GM_ONLY">Private</option>
+              <option value="PLAYERS">Public</option>
+            </select>
+          </div>
+          <input id="pj-title" placeholder="Title" />
+          <input id="pj-tags" placeholder="Tags (comma separated)" />
+          <textarea id="pj-content" placeholder="Content" style="width:100%; min-height:120px; margin-top:6px;"></textarea>
+          <button type="button" class="btn" id="pj-create" style="margin-top:8px;">Create personal</button>
+        </div>`;
+
+      setRouteContent(`<h2>Journal</h2>${personalBlock}${createBlock}${lists}`);
+
+      qs('#jr-create').addEventListener('click', async (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        const campaignId = qs('#jr-camp').value;
+        const type = (qs('#jr-type').value || '').trim();
+        const visibility = (qs('#jr-vis').value || 'GM_ONLY');
+        const title = (qs('#jr-title').value || '').trim();
+        const content = (qs('#jr-content').value || '').trim();
+        const tags = (qs('#jr-tags').value || '').trim();
+        const errors = [];
+        if (!campaignId) errors.push('Campaign is required');
+        if (!type) errors.push('Type is required');
+        if (!title) errors.push('Title is required');
+        if (!content) errors.push('Content is required');
+        if (errors.length) { await showErrorModal('Validation Error', errors.map(e=>`• ${e}`).join('<br>')); return; }
+        try {
+          await api(`/api/campaigns/${encodeURIComponent(campaignId)}/journal`, {
+            method: 'POST',
+            body: JSON.stringify({ type, visibility, title, content, tags: tags || null })
+          });
+          location.hash = `#/campaigns/${campaignId}`;
+        } catch (e) {
+          await showErrorModal('Create Failed', e.message || 'Failed to create journal entry');
+        }
+      });
+
+      // Personal create
+      qs('#pj-create').addEventListener('click', async (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        const type = (qs('#pj-type').value || '').trim();
+        const visibility = (qs('#pj-vis').value || 'GM_ONLY');
+        const title = (qs('#pj-title').value || '').trim();
+        const content = (qs('#pj-content').value || '').trim();
+        const tags = (qs('#pj-tags').value || '').trim();
+        const errors = [];
+        if (!type) errors.push('Type is required');
+        if (!title) errors.push('Title is required');
+        if (!content) errors.push('Content is required');
+        if (errors.length) { await showErrorModal('Validation Error', errors.map(e=>`• ${e}`).join('<br>')); return; }
+        try {
+          await api(`/api/journals`, { method: 'POST', body: JSON.stringify({ type, visibility, title, content, tags: tags || null }) });
+          showJournal();
+        } catch (e) {
+          await showErrorModal('Create Failed', e.message || 'Failed to create personal journal');
+        }
+      });
+
+    } catch (e) {
+      setRouteContent(`<h2>Journal</h2><p class="err">${escapeHtml(e.message || 'Failed to load')}</p>`);
+    }
+  }
   function escapeHtml(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;')
@@ -1197,6 +1557,14 @@
       updateLoggedInUI();
       return;
     }
+    if (route.startsWith('/campaigns/')) {
+      const id = route.substring('/campaigns/'.length);
+      if (id) {
+        showCampaignDetail(id);
+        updateLoggedInUI();
+        return;
+      }
+    }
     switch (route) {
       case '/items':
         showItems();
@@ -1208,7 +1576,7 @@
         showCharacters();
         break;
       case '/journal':
-        setRouteContent('<h2>Journal</h2><p>Campaign journal will appear here.</p>');
+        showJournal();
         break;
       default:
         setRouteContent('<p>Select a section from the navigation.</p>');

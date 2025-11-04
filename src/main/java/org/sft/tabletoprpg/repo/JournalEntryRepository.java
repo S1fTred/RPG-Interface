@@ -15,4 +15,7 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntry, UUID
     List<JournalEntry> findByCampaign_IdAndTypeIgnoreCaseAndVisibilityOrderByCreatedAtDesc(UUID campaignId, String type, JournalVisibility visibility);
     boolean existsByAuthor_Id(UUID authorId);
 
+    // Personal journals (campaign is null)
+    List<JournalEntry> findByAuthor_IdAndCampaignIsNullOrderByCreatedAtDesc(UUID authorId);
+
 }

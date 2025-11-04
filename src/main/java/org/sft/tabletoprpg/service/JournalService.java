@@ -21,4 +21,8 @@ public interface JournalService {
     JournalEntryDto updateJournal(UUID entryId, UUID gmId, JournalEntryUpdateRequest req);
 
     void deleteJournal(UUID entryId, UUID gmId);
+
+    // Personal journals
+    List<JournalEntryDto> listPersonal(UUID authorId);
+    JournalEntryDto createPersonal(UUID authorId, JournalEntryCreateRequest req);
 }

@@ -37,6 +37,13 @@ public class JournalServiceImpl implements JournalService {
         JournalEntry entry = journalEntryRepository.findById(entryId)
             .orElseThrow(() -> new NotFoundException("Запись не найдена"));
 
+        if (entry.getCampaign() == null) {
+            if (!entry.getAuthor().getId().equals(requesterId)) {
+                throw new ForbiddenException("Нет доступа к записи журнала");
+            }
+            return toDto(entry);
+        }
+
         UUID campaignId = entry.getCampaign().getId();
         boolean isGm = entry.getCampaign().getGm().getId().equals(requesterId);
         boolean isMember = isGm || campaignMemberRepository.existsByCampaign_IdAndUser_Id(campaignId, requesterId);
@@ -130,9 +137,15 @@ public class JournalServiceImpl implements JournalService {
         JournalEntry entry = journalEntryRepository.findById(entryId)
             .orElseThrow(() -> new NotFoundException("Запись не найдена"));
 
-        UUID gmOfCampaign = entry.getCampaign().getGm().getId();
-        if (!gmOfCampaign.equals(requesterId)) {
-            throw new ForbiddenException("Только GM может редактировать записи журнала");
+        if (entry.getCampaign() == null) {
+            if (!entry.getAuthor().getId().equals(requesterId)) {
+                throw new ForbiddenException("Нет прав на изменение записи");
+            }
+        } else {
+            UUID gmOfCampaign = entry.getCampaign().getGm().getId();
+            if (!gmOfCampaign.equals(requesterId)) {
+                throw new ForbiddenException("Только GM может редактировать записи журнала");
+            }
         }
 
         if (req.type() != null) {
@@ -168,9 +181,15 @@ public class JournalServiceImpl implements JournalService {
         JournalEntry entry = journalEntryRepository.findById(entryId)
             .orElseThrow(() -> new NotFoundException("Запись не найдена"));
 
-        UUID gmOfCampaign = entry.getCampaign().getGm().getId();
-        if (!gmOfCampaign.equals(requesterId)) {
-            throw new ForbiddenException("Только GM может удалять записи журнала");
+        if (entry.getCampaign() == null) {
+            if (!entry.getAuthor().getId().equals(requesterId)) {
+                throw new ForbiddenException("Нет прав на удаление записи");
+            }
+        } else {
+            UUID gmOfCampaign = entry.getCampaign().getGm().getId();
+            if (!gmOfCampaign.equals(requesterId)) {
+                throw new ForbiddenException("Только GM может удалять записи журнала");
+            }
         }
 
         journalEntryRepository.delete(entry);
@@ -194,7 +213,7 @@ public class JournalServiceImpl implements JournalService {
     private JournalEntryDto toDto(JournalEntry journalEntry){
         return JournalEntryDto.builder()
             .id(journalEntry.getId())
-            .campaignId(journalEntry.getCampaign().getId())
+            .campaignId(journalEntry.getCampaign() != null ? journalEntry.getCampaign().getId() : null)
             .authorId(journalEntry.getAuthor().getId())
             .type(journalEntry.getType())
             .visibility(journalEntry.getVisibility())
@@ -203,5 +222,34 @@ public class JournalServiceImpl implements JournalService {
             .tags(journalEntry.getTags())
             .createdAt(journalEntry.getCreatedAt())
             .build();
+    }
+
+    // ---------------------- PERSONAL JOURNALS ---------------------- //
+    @Override
+    public List<JournalEntryDto> listPersonal(UUID authorId) {
+        List<JournalEntry> all = journalEntryRepository.findByAuthor_IdAndCampaignIsNullOrderByCreatedAtDesc(authorId);
+        return all.stream().map(this::toDto).toList();
+    }
+
+    @Transactional
+    @Override
+    public JournalEntryDto createPersonal(UUID authorId, JournalEntryCreateRequest req) {
+        User author = userRepository.findById(authorId)
+            .orElseThrow(() -> new NotFoundException("Автор не найден"));
+
+        String type = req.type();
+        if (type == null || type.trim().isEmpty()) {
+            throw new BadRequestException("Тип записи не должен быть пустым");
+        }
+        if (req.visibility() == null) {
+            throw new BadRequestException("Видимость записи не должна быть пустой");
+        }
+
+        JournalEntry entry = toEntity(req);
+        entry.setType(type.trim());
+        entry.setCampaign(null);
+        entry.setAuthor(author);
+        journalEntryRepository.save(entry);
+        return toDto(entry);
     }
 }

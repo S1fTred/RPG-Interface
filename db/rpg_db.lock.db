@@ -1,6 +1,6 @@
 #FileLock
-#Sat Nov 01 14:20:07 MSK 2025
-hostName=PC-in-hall
-id=19a3f2559ba98132d2bda521d19ee35a99398082033
+#Tue Nov 04 18:51:47 MSK 2025
+hostName=sft
+id=19a4f912af66f1b73ca797706d010f633474b581991
 method=file
-server=26.91.115.214\:52602
+server=26.91.115.214\:64013
