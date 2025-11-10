@@ -199,6 +199,15 @@ public class CampaignServiceImpl implements CampaignService {
         CampaignMember member = campaignMemberRepository.findById(id)
             .orElseThrow(() -> new NotFoundException("Пользователь не является участником кампании"));
 
+        // Дополнительно: удаляем всех персонажей userId в этой кампании
+        List<org.sft.tabletoprpg.domain.Character> chars = characterRepository.findByOwner_Id(userId)
+            .stream()
+            .filter(ch -> ch.getCampaign().getId().equals(campaignId))
+            .toList();
+        for (org.sft.tabletoprpg.domain.Character ch : chars) {
+            characterRepository.delete(ch);
+        }
+
         campaignMemberRepository.delete(member);
     }
 

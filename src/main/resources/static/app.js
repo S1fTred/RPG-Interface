@@ -1026,7 +1026,10 @@
           <h3>Members</h3>
           <div id="cd-members">
             ${renderList(members, 'No members yet.', (m) => (
-              `<li class="list-item"><div class="list-title">${escapeHtml(m.username || m.userId)} <span class="list-sub">(${escapeHtml(m.roleInCampaign || 'PLAYER')})</span></div></li>`
+              `<li class="list-item" data-uid="${m.userId}"><div class="list-title">${escapeHtml(m.username || m.userId)} <span class="list-sub">(${escapeHtml(m.roleInCampaign || 'PLAYER')})</span></div>
+                ${(m.roleInCampaign !== 'GM' && auth.user && String(auth.user.id) !== String(m.userId))
+                    ? `<button type='button' class='btn danger' data-act='remove-member'>Remove</button>` : ''}
+              </li>`
             ))}
           </div>
         </div>
@@ -1176,6 +1179,26 @@
           });
         } catch (e) {
           qs('#cd-all-users').innerHTML = `<p class="err">${escapeHtml(e.message || 'Failed to load users')}</p>`;
+        }
+
+        const membersDiv = qs('#cd-members');
+        if (membersDiv) {
+          membersDiv.addEventListener('click', async (ev) => {
+            const btn = ev.target.closest('button[data-act="remove-member"]');
+            if (!btn) return;
+            const li = btn.closest('li.list-item');
+            if (!li) return;
+            const userId = li.getAttribute('data-uid');
+            if (!userId) return;
+            const confirmed = await confirmModal('Remove Player', 'Удалить этого участника и всех его персонажей из кампании?');
+            if (!confirmed) return;
+            try {
+              await api(`/api/campaigns/${encodeURIComponent(campaignId)}/members/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+              await showCampaignDetail(campaignId);
+            } catch (e) {
+              await showErrorModal('Remove Failed', e.message || 'Failed to remove member');
+            }
+          });
         }
       }
     } catch (e) {
