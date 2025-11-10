@@ -52,6 +52,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), req, null);
     }
 
+    @ExceptionHandler(AuthException.class)
+    public ResponseEntity<ApiErrorResponse> handleAuth(AuthException ex, HttpServletRequest req) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), req, null);
+    }
+
 
     // ---------- Валидация (@Valid) ----------
 

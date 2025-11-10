@@ -7,6 +7,7 @@ import org.sft.tabletoprpg.service.UserService;
 import org.sft.tabletoprpg.service.dto.auth.*;
 import org.sft.tabletoprpg.service.dto.user.*;
 import org.sft.tabletoprpg.service.exception.BadRequestException;
+import org.sft.tabletoprpg.service.exception.AuthException;
 import org.springframework.http.*;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,12 +34,16 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest req) {
-        var ud = userDetailsService.loadUserByUsername(req.usernameOrEmail());
-        if (!(ud instanceof UserPrincipal p)) {
-            throw new BadRequestException("Bad principal type");
+        UserPrincipal p;
+        try {
+            var ud = userDetailsService.loadUserByUsername(req.usernameOrEmail());
+            if (!(ud instanceof UserPrincipal userP)) throw new AuthException("Invalid username or password");
+            p = userP;
+        } catch (org.springframework.security.core.userdetails.UsernameNotFoundException ex) {
+            throw new AuthException("Invalid username or password");
         }
         if (!encoder.matches(req.password(), p.getPassword())) {
-            throw new BadRequestException("Invalid credentials");
+            throw new AuthException("Invalid username or password");
         }
         var access = jwtService.generateAccessToken(p);
         // при необходимости — выдать рефреш:

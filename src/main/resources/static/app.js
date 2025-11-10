@@ -290,7 +290,9 @@
           setMessage(msg, 'Unexpected response from server', 'err');
         }
       } catch (err) {
-        setMessage(msg, err.message || 'Login failed', 'err');
+        if (err && (err.status === 401 || err.status === 403)) setMessage(msg, 'Неверные имя пользователя или пароль', 'err');
+        else if (err && err.status === 500) setMessage(msg, 'Внутренняя ошибка сервера. Попробуйте позже.', 'err');
+        else setMessage(msg, err.message || 'Login failed', 'err');
       } finally {
         submitBtn.disabled = false;
       }
@@ -881,7 +883,7 @@
 
         <div class="panel" id="camp-list">
           ${renderList(data, 'You are not a member of any campaigns yet.', (c) => (
-            `<li class="list-item" data-id="${c.id}">
+            `<li class="list-item" data-id="${c.id}" data-gmid="${c.gmId}">
               <div class="row-between">
                 <div>
                   <div class="list-title"><a href="#/campaigns/${c.id}">${escapeHtml(c.name || 'Unnamed')}</a></div>
@@ -889,6 +891,9 @@
                 </div>
                 <div class="actions">
                   <a class="btn" href="#/campaigns/${c.id}">Open</a>
+                  ${auth.user && c.gmId && String(auth.user.id) === String(c.gmId)
+                    ? `<button type="button" class="btn danger" data-act="delete-camp" title="Delete">Delete</button>`
+                    : ''}
                 </div>
               </div>
             </li>`
@@ -916,6 +921,28 @@
       }
 
       qs('#btn-camp-create').addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); createCampaign(); });
+
+      const campList = qs('#camp-list');
+      if (campList) {
+        campList.addEventListener('click', async (ev) => {
+          const btn = ev.target.closest('button[data-act="delete-camp"]');
+          if (!btn) return;
+          const li = btn.closest('li.list-item');
+          if (!li) return;
+          const campId = li.getAttribute('data-id');
+          if (!campId) return;
+          const confirm = await confirmModal('Delete Campaign', 'Are you sure you want to delete this campaign? This action cannot be undone.');
+          if (!confirm) return;
+          try {
+            await api(`/api/campaigns/${encodeURIComponent(campId)}`, { method: 'DELETE' });
+            li.remove(); // либо: await showCampaigns(); для полной перерисовки
+            // Лучше обновить список полностью:
+            await showCampaigns();
+          } catch (e) {
+            await showErrorModal('Delete Failed', e.message || 'Failed to delete campaign');
+          }
+        });
+      }
     } catch (e) {
       setRouteContent(`<h2>Campaigns</h2><p class="err">${escapeHtml(e.message || 'Failed to load')}</p>`);
     }
@@ -1731,6 +1758,16 @@
   }
 
   document.addEventListener('DOMContentLoaded', init);
+
+  // Глобальный перехватчик для ошибок авторизации (401/403)
+  window.addEventListener('unhandledrejection', function(event) {
+    if (!event || !event.reason) return;
+    if (event.reason.status === 401 || event.reason.status === 403) {
+      auth.clear();
+      setRouteContent('<h2 class="err">Авторизация истекла</h2><p>Ваша сессия завершилась, выполните повторный вход.</p>');
+      updateLoggedInUI && updateLoggedInUI();
+    }
+  });
 })();
 
 
