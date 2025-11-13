@@ -94,6 +94,12 @@ select:disabled{ opacity:.6; cursor:not-allowed; }
   padding:20px;
 }
 .modal-overlay[hidden]{ display:none; }
+.modal-overlay#inventory-modal{
+  z-index:999;
+}
+.modal-overlay#modal-overlay{
+  z-index:1001;
+}
 .modal{
   background:var(--panel);
   border:1px solid var(--border);
