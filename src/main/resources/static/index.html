@@ -11,6 +11,11 @@
 <body>
     <main id="app">
         <section class="welcome" id="welcome-view">
+            <div style="position: absolute; top: 20px; right: 20px;">
+                <div class="theme-toggle" id="theme-toggle-welcome" title="Toggle theme">
+                    <div class="theme-toggle-slider"></div>
+                </div>
+            </div>
             <div class="brand">
                 <h1>Tabletop RPG Interface</h1>
                 <p class="subtitle">Play, manage, and adventure together</p>
@@ -18,7 +23,7 @@
 
             <div class="auth-panels">
                 <div class="panel" id="login-panel">
-                    <h2>Sign in</h2>
+                    <h2>Log in</h2>
                     <form id="login-form" novalidate>
                         <div class="field">
                             <label for="login-username">Username or Email</label>
@@ -28,7 +33,7 @@
                             <label for="login-password">Password</label>
                             <input id="login-password" name="password" type="password" autocomplete="current-password" required>
                         </div>
-                        <button type="submit" class="btn primary">Sign in</button>
+                        <button type="submit" class="btn primary">Log in</button>
                         <div class="form-message" id="login-message" role="alert" aria-live="polite"></div>
                     </form>
                 </div>
@@ -64,7 +69,10 @@
                 <a href="#/campaigns" id="link-campaigns" class="nav-link" hidden>Campaigns (GM)</a>
                 <a href="#/characters" id="link-characters" class="nav-link" hidden>Characters</a>
                 <a href="#/journal" id="link-journal" class="nav-link" hidden>Journal</a>
-                <button id="btn-logout" class="btn" style="margin-left:auto;">Log out</button>
+                <div class="theme-toggle" id="theme-toggle" style="margin-left:auto;" title="Toggle theme">
+                    <div class="theme-toggle-slider"></div>
+                </div>
+                <button id="btn-logout" class="btn">Log out</button>
             </nav>
             <div id="route-outlet" class="outlet panel" aria-live="polite"></div>
         </section>

@@ -1772,10 +1772,33 @@
     router();
   }
 
+  function initTheme() {
+    // Load saved theme from localStorage or default to dark
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }
+
+  function bindThemeToggle() {
+    const toggles = [qs('#theme-toggle'), qs('#theme-toggle-welcome')].filter(Boolean);
+    
+    const handleToggle = () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+    };
+    
+    toggles.forEach(toggle => {
+      toggle.addEventListener('click', handleToggle);
+    });
+  }
+
   function init() {
+    initTheme();
     bindLogin();
     bindRegister();
     bindLogout();
+    bindThemeToggle();
     window.addEventListener('hashchange', router);
     updateLoggedInUI();
   }
